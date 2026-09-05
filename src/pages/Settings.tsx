@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Sparkles, CheckCircle2, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import {
+  Sparkles,
+  CheckCircle2,
+  Check,
+  ChevronsUpDown,
+  Loader2,
+  ArrowRight,
+} from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -123,7 +130,7 @@ const Settings = () => {
     }
   }, [isInitialSetup]);
 
-  const save = async (message: string) => {
+  const save = async (message: string, onDone?: () => void) => {
     setIsSaving(true);
     const result = await updateProfile({
       firstName: profile.firstName,
@@ -163,6 +170,8 @@ const Settings = () => {
               "Your changes are saved. Updating your contact record is taking a moment and will catch up shortly.",
           },
     );
+
+    onDone?.();
   };
 
   const handleAvatar = (file: File) => {
@@ -255,7 +264,9 @@ const Settings = () => {
                 Let's finish setting up your account
               </h2>
               <p className="text-sm text-muted-foreground">
-                Complete your profile details to get the most out of the community.
+                {activeTab === "notifications"
+                  ? "Step 2 of 2. Choose how you want to hear from us, then you are done."
+                  : "Step 1 of 2. Complete your profile details to get the most out of the community."}
               </p>
             </div>
           </div>
@@ -513,13 +524,25 @@ const Settings = () => {
               </CardContent>
               <CardFooter>
                 <Button
-                  onClick={() => save("Profile updated")}
+                  onClick={() =>
+                    save("Profile updated", () => {
+                      /* In setup, the profile is only half of it. Send them
+                         on to the notification choices rather than leaving
+                         them on a tab they may never open again. */
+                      if (isInitialSetup) setActiveTab("notifications");
+                    })
+                  }
                   disabled={isSaving || loading}
                 >
                   {isSaving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
+                    </>
+                  ) : isInitialSetup ? (
+                    <>
+                      Save and continue
+                      <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                     </>
                   ) : (
                     "Save changes"
@@ -685,7 +708,11 @@ const Settings = () => {
               </CardContent>
               <CardFooter className="flex-col items-start gap-2">
                 <Button
-                  onClick={() => save("Preferences saved")}
+                  onClick={() =>
+                    save("Preferences saved", () => {
+                      if (isInitialSetup) navigate("/dashboard");
+                    })
+                  }
                   disabled={isSaving || loading}
                 >
                   {isSaving ? (
@@ -693,6 +720,8 @@ const Settings = () => {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
                     </>
+                  ) : isInitialSetup ? (
+                    "Finish setup"
                   ) : (
                     "Save changes"
                   )}
