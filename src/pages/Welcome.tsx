@@ -4,13 +4,14 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   PasswordRequirements,
   isPasswordValid,
   firstPasswordProblem,
 } from "@/components/PasswordRequirements";
 import { BRAND } from "@/config/brand";
-import { checkAccount, createAccount } from "@/lib/account";
+import { checkAccount, createAccount, updateProfile } from "@/lib/account";
 import { useToast } from "@/hooks/use-toast";
 
 /**
@@ -26,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
  * because the registration is checked server side.
  */
 
-type Step = "email" | "password";
+type Step = "email" | "password" | "preferences";
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -39,6 +40,12 @@ const Welcome = () => {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [isBusy, setIsBusy] = useState(false);
+
+  // Off by default. Nobody can be messaged until they say so.
+  const [allowMessaging, setAllowMessaging] = useState(false);
+  const [notifyCourseUpdates, setNotifyCourseUpdates] = useState(true);
+  const [notifyCommunityMentions, setNotifyCommunityMentions] = useState(true);
+  const [notifyMarketing, setNotifyMarketing] = useState(false);
 
   // The GoHighLevel form can pass the address through on the redirect. It is
   // a prefill and nothing more: identity is established by the CRM check
@@ -133,6 +140,32 @@ const Welcome = () => {
       return;
     }
 
+    setStep("preferences");
+  };
+
+  const handleSavePreferences = async () => {
+    setIsBusy(true);
+    const result = await updateProfile({
+      firstName,
+      lastName,
+      allowMessaging,
+      notifyCourseUpdates,
+      notifyCommunityMentions,
+      notifyMarketing,
+    });
+    setIsBusy(false);
+
+    // A failure here does not block them. The account exists and the
+    // defaults are safe, so they are let through with a note about where
+    // to change these later rather than being trapped on this screen.
+    if (!result.ok) {
+      toast({
+        variant: "destructive",
+        title: "Could not save your preferences",
+        description: "You can set these later under Settings.",
+      });
+    }
+
     navigate("/dashboard");
   };
 
@@ -147,17 +180,101 @@ const Welcome = () => {
           />
           <div className="space-y-2 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {step === "email" ? "Set up your account" : `Welcome, ${firstName || "there"}`}
+              {step === "email"
+                ? "Set up your account"
+                : step === "password"
+                  ? `Welcome, ${firstName || "there"}`
+                  : "A couple of choices"}
             </h1>
             <p className="text-sm text-muted-foreground">
               {step === "email"
                 ? "Enter the email address you registered with."
-                : "Choose a password and you are in."}
+                : step === "password"
+                  ? "Choose a password and you are in."
+                  : "You can change any of these later under Settings."}
             </p>
           </div>
         </div>
 
-        {step === "email" ? (
+        {step === "preferences" ? (
+          <div className="space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="allow-messaging">Allow direct messages</Label>
+                <p className="text-sm text-muted-foreground">
+                  Let other members message you privately. Off by default, and
+                  nobody can contact you until you turn this on.
+                </p>
+              </div>
+              <Switch
+                id="allow-messaging"
+                checked={allowMessaging}
+                onCheckedChange={setAllowMessaging}
+              />
+            </div>
+
+            <div className="space-y-5 border-t pt-6">
+              <p className="text-sm font-medium">Email me about</p>
+
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="notify-courses">Course updates</Label>
+                  <p className="text-sm text-muted-foreground">
+                    New modules, resources and live coaching sessions.
+                  </p>
+                </div>
+                <Switch
+                  id="notify-courses"
+                  checked={notifyCourseUpdates}
+                  onCheckedChange={setNotifyCourseUpdates}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="notify-community">Community replies</Label>
+                  <p className="text-sm text-muted-foreground">
+                    When someone replies to you or mentions you.
+                  </p>
+                </div>
+                <Switch
+                  id="notify-community"
+                  checked={notifyCommunityMentions}
+                  onCheckedChange={setNotifyCommunityMentions}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="notify-marketing">Offers and news</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Occasional promotions and announcements.
+                  </p>
+                </div>
+                <Switch
+                  id="notify-marketing"
+                  checked={notifyMarketing}
+                  onCheckedChange={setNotifyMarketing}
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSavePreferences}
+              disabled={isBusy}
+              className="h-11 w-full text-base font-semibold"
+            >
+              {isBusy ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Finish"
+              )}
+            </Button>
+          </div>
+        ) : step === "email" ? (
           <form onSubmit={handleCheck} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -233,12 +350,14 @@ const Welcome = () => {
           </form>
         )}
 
+        {step !== "preferences" && (
         <div className="mt-6 text-center text-sm">
           <span className="text-muted-foreground">Already set a password? </span>
           <Link to="/login" className="font-medium text-primary hover:underline">
             Sign in
           </Link>
         </div>
+        )}
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">

@@ -165,6 +165,47 @@ export const syncFromCrm = async (): Promise<void> => {
   }
 };
 
+export interface ProfileInput {
+  firstName?: string;
+  lastName?: string;
+  title?: string;
+  location?: string;
+  bio?: string;
+  allowMessaging?: boolean;
+  notifyCourseUpdates?: boolean;
+  notifyCommunityMentions?: boolean;
+  notifyMarketing?: boolean;
+}
+
+/**
+ * Save the member's own details and preferences.
+ *
+ * Routed through the edge function rather than written straight to the table,
+ * so the same call can also push the name back to the CRM. The academy's own
+ * record is saved first and does not depend on the CRM succeeding: a member's
+ * edits must not be lost because GoHighLevel was slow.
+ *
+ * crmSynced false is not a failure. It means saved here, not yet mirrored
+ * there.
+ */
+export const updateProfile = async (
+  profile: ProfileInput,
+): Promise<{ ok: boolean; crmSynced: boolean; error?: string }> => {
+  const { data, error } = await supabase.functions.invoke(FN, {
+    body: { action: "update-profile", profile },
+  });
+
+  if (error || !data?.success) {
+    return {
+      ok: false,
+      crmSynced: false,
+      error: "We could not save your profile. Please try again.",
+    };
+  }
+
+  return { ok: true, crmSynced: Boolean(data.crmSynced) };
+};
+
 export const getProfile = async (): Promise<Profile | null> => {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData?.session?.user?.id;

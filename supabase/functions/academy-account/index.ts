@@ -447,6 +447,131 @@ Deno.serve(async (req) => {
       });
     }
 
+    /* ---- Save the member's own details and preferences ----------------
+       Identity comes from the caller's own access token. Only the columns
+       listed here are touched, so nothing a member sends can reach
+       is_admin, is_active or crm_contact_id even by accident.            */
+    if (action === "update-profile") {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      if (!token) return json({ error: "Not signed in." }, 401);
+
+      const { data: userData, error: userError } =
+        await admin.auth.getUser(token);
+      const user = userData?.user;
+      if (userError || !user) return json({ error: "Not signed in." }, 401);
+
+      const p = payload.profile ?? {};
+
+      /*
+        Save our own record first, and do not make it conditional on the CRM.
+        An earlier version of this in EI Academy lost the member's edits
+        whenever GoHighLevel was slow, which is the wrong way round: their
+        own academy is the system of record for their preferences.
+      */
+      const patch: Record<string, unknown> = {};
+      if (p.firstName !== undefined) patch.first_name = p.firstName || null;
+      if (p.lastName !== undefined) patch.last_name = p.lastName || null;
+      if (p.title !== undefined) patch.title = p.title || null;
+      if (p.location !== undefined) patch.location = p.location || null;
+      if (p.bio !== undefined) patch.bio = p.bio || null;
+      if (p.allowMessaging !== undefined) {
+        patch.allow_messaging = Boolean(p.allowMessaging);
+      }
+      if (p.notifyCourseUpdates !== undefined) {
+        patch.notify_course_updates = Boolean(p.notifyCourseUpdates);
+      }
+      if (p.notifyCommunityMentions !== undefined) {
+        patch.notify_community_mentions = Boolean(p.notifyCommunityMentions);
+      }
+      if (p.notifyMarketing !== undefined) {
+        patch.notify_marketing = Boolean(p.notifyMarketing);
+      }
+
+      if (Object.keys(patch).length > 0) {
+        const { error: profileError } = await admin
+          .from("profiles")
+          .update(patch)
+          .eq("id", user.id);
+
+        if (profileError) {
+          console.error("profile update failed:", profileError);
+          return json({ error: "Could not save your profile." }, 500);
+        }
+      }
+
+      // Mirror the name back to the CRM, so a member who corrects a typo in
+      // the academy does not stay wrong in GoHighLevel. Preferences are not
+      // pushed: they belong to the academy, not to the marketing record.
+      const { data: row } = await admin
+        .from("profiles")
+        .select("crm_contact_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const contactId: string | null = row?.crm_contact_id ?? null;
+      if (!contactId) {
+        return json({ success: true, crmSynced: false, reason: "no_contact" });
+      }
+
+      const crmPayload: Record<string, unknown> = {};
+      if (p.firstName) crmPayload.firstName = p.firstName;
+      if (p.lastName) crmPayload.lastName = p.lastName;
+
+      /*
+        Professional Title and Professional Bio, in the Additional Information
+        group of the PSLA sub-account. The same arrangement as EI Academy.
+
+        The ids are read from secrets so that a field rebuilt in GoHighLevel
+        can be pointed at without redeploying this function, with the current
+        ids as the fallback.
+      */
+      const customFields: Array<{ id: string; value: unknown }> = [];
+      const titleFieldId =
+        Deno.env.get("CRM_TITLE_FIELD_ID") || "JlNwpFkmpMuJt62IHLJ1";
+      const bioFieldId =
+        Deno.env.get("CRM_BIO_FIELD_ID") || "efNISpd6mJRsd2o2Xf9g";
+
+      if (p.title !== undefined) {
+        customFields.push({ id: titleFieldId, value: p.title ?? "" });
+      }
+      if (p.bio !== undefined) {
+        customFields.push({ id: bioFieldId, value: p.bio ?? "" });
+      }
+      if (customFields.length > 0) crmPayload.customFields = customFields;
+
+      if (Object.keys(crmPayload).length === 0) {
+        return json({ success: true, crmSynced: false, reason: "nothing_to_sync" });
+      }
+
+      try {
+        const res = await fetch(
+          `${GHL_BASE}/contacts/${encodeURIComponent(contactId)}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${crmApiKey}`,
+              Version: GHL_VERSION,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(crmPayload),
+          },
+        );
+
+        if (!res.ok) {
+          // Saved here, not mirrored there. Reported rather than raised: the
+          // member's own record is already correct.
+          console.warn("CRM profile push failed:", res.status, await res.text());
+          return json({ success: true, crmSynced: false, reason: "crm_error" });
+        }
+      } catch (e) {
+        console.warn("CRM profile push threw:", String(e));
+        return json({ success: true, crmSynced: false, reason: "crm_unreachable" });
+      }
+
+      return json({ success: true, crmSynced: true });
+    }
+
     return json({ error: "Unknown action." }, 400);
   } catch (error) {
     console.error("Unhandled error:", error);
