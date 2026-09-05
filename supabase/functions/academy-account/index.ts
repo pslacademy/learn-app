@@ -6,14 +6,14 @@
    reaches a browser.
 
    Carried from EI Academy, with one deliberate difference: there is no
-   tier. PSLA has no ladder. Phase 2 reads only the admin tag and whether
-   the contact exists. Phase 3 adds community resolution, and the tag
-   extraction below is already shaped for it.
+   tier. PSLA has no ladder. A member holds a set of communities, each
+   bought independently, and holding one implies nothing about another.
 
    Actions:
-     check     is this address enrolled, and does it already have an account
-     register  create a real account for an enrolled contact
-     sync      re-read a signed-in member's CRM record
+     check           is this address enrolled, and does it have an account
+     register        create a real account for an enrolled contact
+     sync            re-read a signed-in member's CRM record
+     update-profile  save a member's own details and preferences
    ────────────────────────────────────────────────────────────────────── */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
@@ -70,7 +70,7 @@ interface CrmLookup {
   contactId?: string;
   firstName?: string;
   lastName?: string;
-  /** Normalised. Phase 3 maps these onto communities. */
+  /** Normalised. Mapped onto communities by reconcileCommunities. */
   tags?: string[];
   isAdmin?: boolean;
 }
@@ -193,6 +193,105 @@ async function lookupContactById(
   }
 
   return fromContact(contact);
+}
+
+
+/* ──────────────────────────────────────────────────────────────────────
+   Communities
+
+   A member's communities are worked out here and nowhere else. The rule is
+   simple and has no ordering in it: hold any tag listed against a community
+   and you are in it. There is no ladder, so nothing is implied by holding
+   one community rather than another.
+
+   Free communities are never stored. Every signed-in account is in them by
+   definition, and my_community_ids() adds them at read time, so there is no
+   row that can go missing.
+   ────────────────────────────────────────────────────────────────────── */
+
+interface CommunityRow {
+  id: string;
+  slug: string;
+  ghl_tags: string[] | null;
+}
+
+/**
+ * Which paid communities do these tags grant?
+ *
+ * Comparison is on the normalised tag: lowercased and trimmed on both sides,
+ * because the registration workflow writes "PSLA Community" while older
+ * contacts carry "psla community" and both must resolve to the same row.
+ */
+const communitiesForTags = (
+  rows: CommunityRow[],
+  tags: string[],
+): string[] => {
+  const held = new Set(tags);
+  return rows
+    .filter((row) =>
+      (row.ghl_tags ?? []).some((t) => held.has(String(t).trim().toLowerCase())),
+    )
+    .map((row) => row.id);
+};
+
+/**
+ * Bring member_communities into line with the CRM.
+ *
+ * Only ever called with a definite answer from GoHighLevel. A CRM that could
+ * not be reached must leave every existing grant untouched, which is why the
+ * caller decides whether to call this at all rather than passing an empty tag
+ * list and letting it revoke everything.
+ *
+ * Returns what changed, so a sync can say so rather than claiming success
+ * silently.
+ */
+async function reconcileCommunities(
+  admin: ReturnType<typeof createClient>,
+  memberId: string,
+  tags: string[],
+): Promise<{ granted: string[]; revoked: string[] }> {
+  const { data: communities, error: cErr } = await admin
+    .from("communities")
+    .select("id, slug, ghl_tags")
+    .eq("is_active", true)
+    .eq("is_free", false);
+
+  if (cErr || !communities) {
+    console.error("Could not read communities:", cErr);
+    return { granted: [], revoked: [] };
+  }
+
+  const shouldHold = new Set(
+    communitiesForTags(communities as CommunityRow[], tags),
+  );
+
+  const { data: existing } = await admin
+    .from("member_communities")
+    .select("community_id")
+    .eq("member_id", memberId);
+
+  const held = new Set((existing ?? []).map((r) => r.community_id as string));
+
+  const toGrant = [...shouldHold].filter((id) => !held.has(id));
+  const toRevoke = [...held].filter((id) => !shouldHold.has(id));
+
+  if (toGrant.length > 0) {
+    const { error } = await admin.from("member_communities").insert(
+      toGrant.map((community_id) => ({ member_id: memberId, community_id })),
+    );
+    if (error) console.error("Granting communities failed:", error);
+  }
+
+  if (toRevoke.length > 0) {
+    const { error } = await admin
+      .from("member_communities")
+      .delete()
+      .eq("member_id", memberId)
+      .in("community_id", toRevoke);
+    if (error) console.error("Revoking communities failed:", error);
+  }
+
+  return { granted: toGrant, revoked: toRevoke };
 }
 
 Deno.serve(async (req) => {
@@ -353,16 +452,30 @@ Deno.serve(async (req) => {
         return json({ error: "Could not create the account." }, 500);
       }
 
-      console.log(`Account created for ${email}, admin: ${crm.isAdmin}`);
-      return json({ success: true, isAdmin: crm.isAdmin ?? false });
+      // The tags were read a moment ago and the answer was definite, so the
+      // grants can be written straight away rather than waiting for the first
+      // sync. Somebody who buys and registers must not sign in to an empty
+      // academy and wonder what they paid for.
+      const { granted } = await reconcileCommunities(
+        admin,
+        userId,
+        crm.tags ?? [],
+      );
+
+      console.log(
+        `Account created for ${email}, admin: ${crm.isAdmin}, ` +
+          `communities granted: ${granted.length}`,
+      );
+      return json({
+        success: true,
+        isAdmin: crm.isAdmin ?? false,
+        communitiesGranted: granted.length,
+      });
     }
 
     /* ---- Re-read a signed-in member's CRM record ----------------------
        Identity comes from the caller's own access token, never from the
-       request body, so nobody can ask about somebody else.
-
-       Phase 3 extends this to write member_communities. Today it maintains
-       the admin flag, the name, and is_active.                           */
+       request body, so nobody can ask about somebody else.               */
     if (action === "sync") {
       const authHeader = req.headers.get("Authorization") ?? "";
       const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -439,11 +552,34 @@ Deno.serve(async (req) => {
         return json({ error: "Could not update the profile." }, 500);
       }
 
+      /*
+        Reconcile the community grants against what the CRM now says.
+
+        Reached only on a definite answer. The two earlier branches return
+        before this point when the CRM could not be asked, or when the contact
+        is gone, so a network problem can never quietly strip a member of
+        something they paid for. Removing a tag in GoHighLevel does remove the
+        community here, which is the intended way to end an entitlement.
+      */
+      const { granted, revoked } = await reconcileCommunities(
+        admin,
+        userId,
+        crm.tags ?? [],
+      );
+
+      if (granted.length || revoked.length) {
+        console.log(
+          `Communities for ${profile.email}: +${granted.length} -${revoked.length}`,
+        );
+      }
+
       return json({
         success: true,
         changed: true,
         isAdmin: crm.isAdmin ?? false,
         isActive: true,
+        communitiesGranted: granted.length,
+        communitiesRevoked: revoked.length,
       });
     }
 
