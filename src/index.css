@@ -46,6 +46,17 @@
     --ring: 27.6 91.4% 54.3%;
 
     --radius: 0.5rem;
+
+    /* The sidebar reads its own tokens so the shell can be tuned without
+       touching the page palette. Same values as the main palette today. */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 210 29% 24.3%;
+    --sidebar-primary: 27.6 91.4% 54.3%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 96.1%;
+    --sidebar-accent-foreground: 210 29% 24.3%;
+    --sidebar-border: 212.3 21.3% 88%;
+    --sidebar-ring: 27.6 91.4% 54.3%;
   }
 }
 

@@ -22,6 +22,8 @@ export interface Profile {
   location: string | null;
   bio: string | null;
   avatar_url: string | null;
+  /** IANA name, e.g. Australia/Sydney. */
+  timezone: string | null;
   allow_messaging: boolean;
   notify_course_updates: boolean;
   notify_community_mentions: boolean;
@@ -169,8 +171,12 @@ export interface ProfileInput {
   firstName?: string;
   lastName?: string;
   title?: string;
+  /** ISO 3166-1 alpha-2 country code. */
   location?: string;
+  timezone?: string;
   bio?: string;
+  /** A data URL. Kept under 800K by the caller. */
+  avatarUrl?: string;
   allowMessaging?: boolean;
   notifyCourseUpdates?: boolean;
   notifyCommunityMentions?: boolean;

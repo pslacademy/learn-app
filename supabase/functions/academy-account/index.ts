@@ -475,6 +475,8 @@ Deno.serve(async (req) => {
       if (p.title !== undefined) patch.title = p.title || null;
       if (p.location !== undefined) patch.location = p.location || null;
       if (p.bio !== undefined) patch.bio = p.bio || null;
+      if (p.timezone !== undefined) patch.timezone = p.timezone || null;
+      if (p.avatarUrl !== undefined) patch.avatar_url = p.avatarUrl || null;
       if (p.allowMessaging !== undefined) {
         patch.allow_messaging = Boolean(p.allowMessaging);
       }
@@ -517,6 +519,17 @@ Deno.serve(async (req) => {
       const crmPayload: Record<string, unknown> = {};
       if (p.firstName) crmPayload.firstName = p.firstName;
       if (p.lastName) crmPayload.lastName = p.lastName;
+
+      /*
+        Country and timezone are standard GoHighLevel contact fields, not
+        custom ones. country expects an ISO 3166-1 alpha-2 code, which is
+        exactly what the picker stores, so nothing is translated here.
+
+        The avatar is deliberately not sent. It is an 800K data URL and the
+        CRM has nowhere sensible to put it.
+      */
+      if (p.location) crmPayload.country = p.location;
+      if (p.timezone) crmPayload.timezone = p.timezone;
 
       /*
         Professional Title and Professional Bio, in the Additional Information
