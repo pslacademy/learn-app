@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   PasswordRequirements,
   isPasswordValid,
@@ -27,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
  * because the registration is checked server side.
  */
 
-type Step = "email" | "password" | "preferences";
+type Step = "email" | "password" | "preferences" | "profile";
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -46,6 +47,10 @@ const Welcome = () => {
   const [notifyCourseUpdates, setNotifyCourseUpdates] = useState(true);
   const [notifyCommunityMentions, setNotifyCommunityMentions] = useState(true);
   const [notifyMarketing, setNotifyMarketing] = useState(false);
+
+  const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
+  const [bio, setBio] = useState("");
 
   // The GoHighLevel form can pass the address through on the redirect. It is
   // a prefill and nothing more: identity is established by the CRM check
@@ -166,6 +171,22 @@ const Welcome = () => {
       });
     }
 
+    setStep("profile");
+  };
+
+  const handleSaveProfile = async () => {
+    setIsBusy(true);
+    const result = await updateProfile({ firstName, lastName, title, location, bio });
+    setIsBusy(false);
+
+    if (!result.ok) {
+      toast({
+        variant: "destructive",
+        title: "Could not save your profile",
+        description: "You can fill this in later under Settings.",
+      });
+    }
+
     navigate("/dashboard");
   };
 
@@ -184,19 +205,109 @@ const Welcome = () => {
                 ? "Set up your account"
                 : step === "password"
                   ? `Welcome, ${firstName || "there"}`
-                  : "A couple of choices"}
+                  : step === "preferences"
+                    ? "A couple of choices"
+                    : "Your profile"}
             </h1>
             <p className="text-sm text-muted-foreground">
               {step === "email"
                 ? "Enter the email address you registered with."
                 : step === "password"
                   ? "Choose a password and you are in."
-                  : "You can change any of these later under Settings."}
+                  : step === "preferences"
+                    ? "You can change any of these later under Settings."
+                    : "How you appear to other members. All of it is optional."}
             </p>
           </div>
         </div>
 
-        {step === "preferences" ? (
+        {step === "profile" ? (
+          <div className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="first-name">First name</Label>
+                <Input
+                  id="first-name"
+                  className="h-11"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={isBusy}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last-name">Last name</Label>
+                <Input
+                  id="last-name"
+                  className="h-11"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  disabled={isBusy}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Professional title</Label>
+              <Input
+                id="title"
+                className="h-11"
+                placeholder="Partner, Corporate Advisory"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                className="h-11"
+                placeholder="Sydney, Australia"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio">About you</Label>
+              <Textarea
+                id="bio"
+                rows={4}
+                placeholder="A few lines about your work and what you are here to learn."
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                disabled={isBusy}
+              />
+            </div>
+
+            <Button
+              onClick={handleSaveProfile}
+              disabled={isBusy}
+              className="h-11 w-full text-base font-semibold"
+            >
+              {isBusy ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Finish"
+              )}
+            </Button>
+
+            {/* Nobody is held at the door over an optional field. */}
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              disabled={isBusy}
+              className="w-full text-center text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              Skip for now
+            </button>
+          </div>
+        ) : step === "preferences" ? (
           <div className="space-y-6">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
@@ -270,7 +381,7 @@ const Welcome = () => {
                   Saving...
                 </>
               ) : (
-                "Finish"
+                "Continue"
               )}
             </Button>
           </div>
@@ -350,7 +461,7 @@ const Welcome = () => {
           </form>
         )}
 
-        {step !== "preferences" && (
+        {step !== "preferences" && step !== "profile" && (
         <div className="mt-6 text-center text-sm">
           <span className="text-muted-foreground">Already set a password? </span>
           <Link to="/login" className="font-medium text-primary hover:underline">
