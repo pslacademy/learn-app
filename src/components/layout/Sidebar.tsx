@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
+  CalendarDays,
+  Video,
   Settings,
   LogOut,
   SlidersHorizontal,
@@ -22,6 +24,8 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: BookOpen, label: "My Courses", href: "/courses" },
+  { icon: CalendarDays, label: "Events", href: "/events" },
+  { icon: Video, label: "Replays", href: "/replays" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 

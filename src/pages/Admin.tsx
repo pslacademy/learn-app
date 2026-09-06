@@ -40,6 +40,7 @@ import { listCourses, type Course, type Lesson, type Resource } from "@/lib/cour
 import { allCommunities, type Community } from "@/lib/communities";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
+import { EventsAdmin } from "@/components/admin/EventsAdmin";
 
 /**
  * Academy administration.
@@ -346,7 +347,7 @@ const Admin = () => {
               <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
               Resources
             </TabsTrigger>
-            <TabsTrigger value="events" disabled>
+            <TabsTrigger value="events">
               <Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
               Events
             </TabsTrigger>
@@ -363,6 +364,10 @@ const Admin = () => {
               Assessments
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="events" className="mt-6">
+            <EventsAdmin isAdmin={isAdmin} communities={communities} />
+          </TabsContent>
 
           <TabsContent value="content" className="mt-6">
             <div className="grid gap-6 lg:grid-cols-[360px,1fr]">

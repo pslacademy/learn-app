@@ -10,6 +10,8 @@ import Settings from "./pages/Settings";
 import Courses from "./pages/Courses";
 import CoursePlayer from "./pages/CoursePlayer";
 import Admin from "./pages/Admin";
+import Events from "./pages/Events";
+import Replays from "./pages/Replays";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -56,6 +58,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <CoursePlayer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events"
+            element={
+              <ProtectedRoute>
+                <Events />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/replays"
+            element={
+              <ProtectedRoute>
+                <Replays />
               </ProtectedRoute>
             }
           />
