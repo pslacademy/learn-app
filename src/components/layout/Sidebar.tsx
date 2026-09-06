@@ -1,7 +1,14 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Settings, LogOut } from "lucide-react";
+import {
+  LayoutDashboard,
+  BookOpen,
+  Settings,
+  LogOut,
+  SlidersHorizontal,
+} from "lucide-react";
 import { BRAND } from "@/config/brand";
-import { signOut } from "@/lib/account";
+import { getProfile, signOut } from "@/lib/account";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,12 +21,26 @@ import { cn } from "@/lib/utils";
  */
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: BookOpen, label: "Courses", href: "/courses" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
 export function Sidebar({ className }: { className?: string }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isStaff, setIsStaff] = useState(false);
+
+  // Admin is shown only to staff. Hiding it is a courtesy: the page redirects
+  // and every policy refuses regardless, so this is not what keeps them out.
+  useEffect(() => {
+    let cancelled = false;
+    getProfile().then((p) => {
+      if (!cancelled) setIsStaff(Boolean(p?.is_admin || p?.is_editor));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Ends the real session, not just a flag in this browser.
   const handleLogout = async () => {
@@ -46,7 +67,12 @@ export function Sidebar({ className }: { className?: string }) {
 
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
-          {navItems.map((item) => {
+          {[
+            ...navItems,
+            ...(isStaff
+              ? [{ icon: SlidersHorizontal, label: "Admin", href: "/admin" }]
+              : []),
+          ].map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link

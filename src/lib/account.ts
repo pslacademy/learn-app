@@ -29,6 +29,8 @@ export interface Profile {
   notify_community_mentions: boolean;
   notify_marketing: boolean;
   is_admin: boolean;
+  /** From the psla editor tag. May edit content, may not decide entitlement. */
+  is_editor: boolean;
   is_active: boolean;
   crm_contact_id: string | null;
   /** When the CRM was last read. Drives the re-read on open. */

@@ -57,6 +57,16 @@ const normaliseTags = (raw: unknown): string[] =>
  */
 const isAdminTag = (tags: string[]) => tags.includes("psla admin");
 
+/**
+ * The editor tag is "psla editor".
+ *
+ * An editor may build and change content. They may not decide who is
+ * entitled to it: attaching a course to a community stays with an admin.
+ * Otherwise "content editor" would quietly mean "can give away the paid
+ * courses", and the entitlement rules would be undone by a job title.
+ */
+const isEditorTag = (tags: string[]) => tags.includes("psla editor");
+
 const titleCase = (s?: string) =>
   s
     ? s
@@ -73,6 +83,7 @@ interface CrmLookup {
   /** Normalised. Mapped onto communities by reconcileCommunities. */
   tags?: string[];
   isAdmin?: boolean;
+  isEditor?: boolean;
 }
 
 const fromContact = (contact: Record<string, unknown>): CrmLookup => {
@@ -84,6 +95,7 @@ const fromContact = (contact: Record<string, unknown>): CrmLookup => {
     lastName: titleCase(contact.lastName as string | undefined),
     tags,
     isAdmin: isAdminTag(tags),
+    isEditor: isEditorTag(tags),
   };
 };
 
@@ -441,6 +453,7 @@ Deno.serve(async (req) => {
         first_name: crm.firstName ?? payload.firstName ?? "",
         last_name: crm.lastName ?? payload.lastName ?? "",
         is_admin: crm.isAdmin ?? false,
+        is_editor: crm.isEditor ?? false,
         crm_contact_id: crm.contactId,
         communities_synced_at: new Date().toISOString(),
       });
@@ -469,6 +482,7 @@ Deno.serve(async (req) => {
       return json({
         success: true,
         isAdmin: crm.isAdmin ?? false,
+        isEditor: crm.isEditor ?? false,
         communitiesGranted: granted.length,
       });
     }
@@ -488,7 +502,7 @@ Deno.serve(async (req) => {
 
       const { data: profile } = await admin
         .from("profiles")
-        .select("crm_contact_id, email, is_admin, is_active")
+        .select("crm_contact_id, email, is_admin, is_editor, is_active")
         .eq("id", userId)
         .maybeSingle();
 
@@ -535,6 +549,7 @@ Deno.serve(async (req) => {
 
       const patch: Record<string, unknown> = {
         is_admin: crm.isAdmin ?? false,
+        is_editor: crm.isEditor ?? false,
         is_active: true,
         crm_contact_id: crm.contactId,
         communities_synced_at: new Date().toISOString(),
