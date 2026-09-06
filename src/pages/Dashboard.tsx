@@ -143,7 +143,7 @@ const Dashboard = () => {
                     <img
                       src={resume.image_url}
                       alt=""
-                      className="h-40 w-full object-cover"
+                      className="aspect-video w-full object-cover"
                     />
                   )}
                   <CardContent className="space-y-3 p-6">
@@ -180,7 +180,7 @@ const Dashboard = () => {
                     <img
                       src={upNext.thumbnail_url ?? resume?.image_url ?? ""}
                       alt=""
-                      className="h-40 w-full object-cover"
+                      className="aspect-video w-full object-cover"
                     />
                   )}
                   <CardContent className="space-y-2 p-6">

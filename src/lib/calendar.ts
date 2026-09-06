@@ -79,16 +79,52 @@ export const zonedToUtc = (
 export const stampUtc = (d: Date): string =>
   d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 
+/**
+ * The date the series actually begins.
+ *
+ * A recurring event's stored start date is when it was created, and it need
+ * not be one of its own occurrences: a session created on Sunday 6 September
+ * that repeats on the fourth Tuesday first happens on 22 September.
+ *
+ * The academy hides that, because it computes the next occurrence itself.
+ * A calendar cannot. Handed a series starting on a Sunday and a rule saying
+ * fourth Tuesday, Google resolves the contradiction by discarding the rule
+ * and inferring the pattern from the start date, so the member's calendar
+ * says "monthly on the first Sunday" and is wrong every month thereafter.
+ *
+ * So the calendar is given the first genuine occurrence instead, which makes
+ * the series consistent with its own rule.
+ *
+ * The arithmetic is on calendar dates rather than instants, so it gives the
+ * same answer wherever the member is sitting.
+ */
+const seriesStartDate = (event: AcademyEvent): string => {
+  if (!event.isRecurring || !event.startDate || !event.startTime) {
+    return event.startDate;
+  }
+
+  const stored = new Date(`${event.startDate}T${event.startTime}:00`);
+  if (isNaN(stored.getTime())) return event.startDate;
+
+  // The first occurrence on or after the stored start, rather than the next
+  // one from today: a calendar wants the whole series, including the past.
+  const first = nextOccurrence(event, stored);
+  if (!first) return event.startDate;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(first.getDate())}`;
+};
+
 export const eventTimes = (
   event: AcademyEvent,
 ): { start: Date; end: Date } | null => {
   const tz = event.timezone;
-  const start = zonedToUtc(event.startDate, event.startTime, tz);
+  const on = seriesStartDate(event);
+
+  const start = zonedToUtc(on, event.startTime, tz);
   if (!start) return null;
 
-  const end = event.endTime
-    ? zonedToUtc(event.startDate || event.startDate, event.endTime, tz)
-    : null;
+  const end = event.endTime ? zonedToUtc(on, event.endTime, tz) : null;
 
   return {
     start,
@@ -169,7 +205,7 @@ export const buildRRule = (event: AcademyEvent): string => {
       const prefix = ord === 5 ? -1 : ord;
       parts.push(`BYDAY=${prefix}${ICAL_DAY[rule.weekday ?? 1]}`);
     } else {
-      const day = Number(event.startDate?.slice(8, 10));
+      const day = Number(seriesStartDate(event).slice(8, 10));
       if (day) parts.push(`BYMONTHDAY=${day}`);
     }
   } else parts.push("FREQ=YEARLY");

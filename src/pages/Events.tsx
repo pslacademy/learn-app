@@ -106,7 +106,7 @@ const Events = () => {
                     <img
                       src={event.imageUrl}
                       alt=""
-                      className="h-40 w-full object-cover"
+                      className="aspect-video w-full object-cover"
                     />
                   )}
 

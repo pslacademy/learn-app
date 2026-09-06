@@ -61,9 +61,9 @@ const Courses = () => {
     return (
       <Card className="flex flex-col overflow-hidden">
         {course.image_url ? (
-          <img src={course.image_url} alt="" className="h-44 w-full object-cover" />
+          <img src={course.image_url} alt="" className="aspect-video w-full object-cover" />
         ) : (
-          <div className="flex h-44 w-full items-center justify-center bg-muted">
+          <div className="flex aspect-video w-full items-center justify-center bg-muted">
             <BookOpen className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           </div>
         )}
@@ -166,7 +166,7 @@ const Courses = () => {
                             <img
                               src={course.image_url}
                               alt=""
-                              className="h-44 w-full object-cover opacity-60"
+                              className="aspect-video w-full object-cover opacity-60"
                             />
                           )}
                           <CardContent className="flex flex-1 flex-col gap-4 p-6">

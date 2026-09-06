@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Save, Trash2, Video } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, Save, Trash2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,11 @@ import {
 import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { listEvents, type AcademyEvent } from "@/lib/events";
+import {
+  listEvents,
+  startDateMismatch,
+  type AcademyEvent,
+} from "@/lib/events";
 import { type Community } from "@/lib/communities";
 import type { Resource } from "@/lib/courses";
 import {
@@ -336,10 +340,22 @@ export const EventsAdmin = ({ isAdmin, communities }: Props) => {
                 <div className="space-y-2 md:col-span-2">
                   <Label>Image URL</Label>
                   <Input
-                    placeholder="https://..."
+                    placeholder="https://... (.jpg or .png)"
                     value={(value("imageUrl") as string) ?? ""}
                     onChange={(e) => edit({ imageUrl: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Shown on the Events card and behind the replay player.
+                    Upload to GoHighLevel Media Storage and paste the public URL
+                    here. Recommended size 1280×720 pixels, 16:9.
+                  </p>
+                  {value("imageUrl") && (
+                    <img
+                      src={value("imageUrl") as string}
+                      alt=""
+                      className="mt-2 aspect-video max-w-sm rounded-md border object-cover"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -551,6 +567,46 @@ export const EventsAdmin = ({ isAdmin, communities }: Props) => {
                         startTime: value("startTime") as string,
                       })}
                     </p>
+
+                    {/* The date typed need not satisfy the rule chosen. That
+                        is allowed, and everything downstream copes, but it
+                        should be said out loud here rather than discovered in
+                        somebody's calendar. */}
+                    {(() => {
+                      const first = startDateMismatch(
+                        value("startDate") as string,
+                        value("startTime") as string,
+                        true,
+                        rule,
+                      );
+                      if (!first) return null;
+
+                      const typed = new Date(
+                        `${value("startDate")}T${value("startTime")}:00`,
+                      );
+                      const fmt = (d: Date) =>
+                        d.toLocaleDateString("en-AU", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        });
+
+                      return (
+                        <div className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                          <AlertTriangle
+                            className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
+                            aria-hidden="true"
+                          />
+                          <p>
+                            This starts on {fmt(typed)}, which does not match the
+                            pattern above. The first session will be{" "}
+                            <strong>{fmt(first)}</strong>. Change the date if
+                            that is not what you meant.
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

@@ -194,3 +194,46 @@ export const formatTimes = (
     return { eventTime, memberTime: null };
   }
 };
+
+/**
+ * Does the start date the editor typed actually satisfy the rule they chose?
+ *
+ * It need not. A session created on Sunday 6 September that repeats on the
+ * fourth Tuesday genuinely first happens on 22 September, and everything
+ * downstream copes.
+ *
+ * The trouble is that nothing said so. The Events page showed 22 September
+ * because it computes the next occurrence, while the calendar export was
+ * handed 6 September, so a member's own calendar disagreed with the academy.
+ * That is fixed, but the underlying oddity is still worth pointing out at the
+ * moment it is created rather than discovered in somebody's calendar.
+ *
+ * Returns the first real occurrence when it differs from the typed start, and
+ * null when the two agree or the event does not repeat.
+ */
+export const startDateMismatch = (
+  startDate: string | undefined,
+  startTime: string | undefined,
+  isRecurring: boolean,
+  recurrence: RecurrenceRule | null,
+): Date | null => {
+  if (!isRecurring || !startDate || !startTime || !recurrence) return null;
+
+  const typed = new Date(`${startDate}T${startTime}:00`);
+  if (isNaN(typed.getTime())) return null;
+
+  const first = nextOccurrence(
+    { startDate, startTime, isRecurring: true, recurrence },
+    typed,
+  );
+  if (!first) return null;
+
+  // Compare the calendar date, not the instant: the time of day is the same
+  // by construction, and a millisecond difference is not a mismatch.
+  const sameDay =
+    first.getFullYear() === typed.getFullYear() &&
+    first.getMonth() === typed.getMonth() &&
+    first.getDate() === typed.getDate();
+
+  return sameDay ? null : first;
+};

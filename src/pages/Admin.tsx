@@ -714,14 +714,17 @@ const Admin = () => {
                               onChange={(e) => editCourse({ image_url: e.target.value })}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Shown on the Courses cards. Paste the link from
-                              GoHighLevel Media Storage.
+                              Shown on the My Courses and Dashboard cards.
+                              Upload to GoHighLevel Media Storage and paste the
+                              public URL here. Recommended size 1280×720
+                              pixels, 16:9. Anything else is scaled to fit and
+                              may be cropped.
                             </p>
                             {courseValue("image_url") && (
                               <img
                                 src={courseValue("image_url") as string}
                                 alt=""
-                                className="mt-2 max-h-48 rounded-md border object-cover"
+                                className="mt-2 aspect-video max-w-sm rounded-md border object-cover"
                               />
                             )}
                           </div>
@@ -811,7 +814,9 @@ const Admin = () => {
                               }
                             />
                             <p className="text-xs text-muted-foreground">
-                              Recommended size 1280×720 pixels, 16:9.
+                              Upload to GoHighLevel Media Storage and paste the
+                              public URL here. Recommended size 1280×720
+                              pixels, 16:9.
                             </p>
                           </div>
 
