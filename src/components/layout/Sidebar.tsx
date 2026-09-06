@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
  */
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: BookOpen, label: "Courses", href: "/courses" },
+  { icon: BookOpen, label: "My Courses", href: "/courses" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 

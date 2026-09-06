@@ -51,6 +51,10 @@ export interface Course {
   description: string | null;
   code: string | null;
   image_url: string | null;
+  instructor: string | null;
+  /** Display label on the card. Carries no entitlement meaning. */
+  badge: string | null;
+  total_duration: string | null;
   lesson_count: number;
   sort_order: number;
   is_active: boolean;
@@ -75,7 +79,7 @@ export const listCourses = async (): Promise<Course[]> => {
     await Promise.all([
       supabase
         .from("courses")
-        .select("id, slug, title, description, code, image_url, lesson_count, sort_order, is_active")
+        .select("id, slug, title, description, code, image_url, instructor, badge, total_duration, lesson_count, sort_order, is_active")
         .eq("is_active", true)
         .order("sort_order"),
       supabase.from("course_communities").select("course_id, community_id"),
