@@ -39,6 +39,7 @@ import { getProfile, type Profile } from "@/lib/account";
 import { listCourses, type Course, type Lesson, type Resource } from "@/lib/courses";
 import { allCommunities, type Community } from "@/lib/communities";
 import { cn } from "@/lib/utils";
+import { ConfirmDelete } from "@/components/ConfirmDelete";
 
 /**
  * Academy administration.
@@ -466,20 +467,42 @@ const Admin = () => {
                           >
                             <ArrowDown className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Delete module"
-                            disabled={saving || !module}
-                            onClick={() =>
-                              module &&
-                              structural("Module deleted", async () =>
-                                supabase.from("course_modules").delete().eq("id", module.id),
-                              )
-                            }
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {module ? (
+                            <ConfirmDelete
+                              name={moduleTitle || "this module"}
+                              consequence={
+                                module.lessons.length > 0
+                                  ? `Its ${module.lessons.length} lesson${module.lessons.length === 1 ? "" : "s"} and every member's progress on them go too.`
+                                  : undefined
+                              }
+                              onConfirm={() =>
+                                structural("Module deleted", async () =>
+                                  supabase
+                                    .from("course_modules")
+                                    .delete()
+                                    .eq("id", module.id),
+                                )
+                              }
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Delete module"
+                                disabled={saving}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </ConfirmDelete>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Delete module"
+                              disabled
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -555,23 +578,38 @@ const Admin = () => {
                               >
                                 <ArrowDown className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Delete lesson"
-                                disabled={saving || !lesson}
-                                onClick={() =>
-                                  lesson &&
-                                  structural("Lesson deleted", async () =>
-                                    supabase
-                                      .from("course_lessons")
-                                      .delete()
-                                      .eq("id", lesson.id),
-                                  )
-                                }
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              {lesson ? (
+                                <ConfirmDelete
+                                  name={(lessonValue("title") as string) || "this lesson"}
+                                  consequence="Every member's progress on it goes too."
+                                  onConfirm={() =>
+                                    structural("Lesson deleted", async () =>
+                                      supabase
+                                        .from("course_lessons")
+                                        .delete()
+                                        .eq("id", lesson.id),
+                                    )
+                                  }
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Delete lesson"
+                                    disabled={saving}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </ConfirmDelete>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Delete lesson"
+                                  disabled
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </>
@@ -899,18 +937,20 @@ const Admin = () => {
                       )}
 
                       <div className="flex justify-end border-t pt-4">
-                        <Button
-                          variant="outline"
-                          disabled={saving}
-                          onClick={() =>
+                        <ConfirmDelete
+                          name={(courseValue("title") as string) || "this course"}
+                          consequence={`Its ${course.modules.length} module${course.modules.length === 1 ? "" : "s"}, ${course.modules.flatMap((m) => m.lessons).length} lesson${course.modules.flatMap((m) => m.lessons).length === 1 ? "" : "s"} and every member's progress on it go too.`}
+                          onConfirm={() =>
                             structural("Course deleted", async () =>
                               supabase.from("courses").delete().eq("id", course.id),
                             )
                           }
                         >
-                          <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                          Delete course
-                        </Button>
+                          <Button variant="outline" disabled={saving}>
+                            <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                            Delete course
+                          </Button>
+                        </ConfirmDelete>
                       </div>
                     </>
                   )}
