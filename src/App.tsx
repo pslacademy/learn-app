@@ -12,6 +12,7 @@ import CoursePlayer from "./pages/CoursePlayer";
 import Admin from "./pages/Admin";
 import Events from "./pages/Events";
 import Replays from "./pages/Replays";
+import Resources from "./pages/Resources";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -74,6 +75,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Replays />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/resources"
+            element={
+              <ProtectedRoute>
+                <Resources />
               </ProtectedRoute>
             }
           />

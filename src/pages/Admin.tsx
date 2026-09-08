@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { EventsAdmin } from "@/components/admin/EventsAdmin";
 import { MembersAdmin } from "@/components/admin/MembersAdmin";
+import { ResourcesAdmin } from "@/components/admin/ResourcesAdmin";
 
 /**
  * Academy administration.
@@ -344,7 +345,7 @@ const Admin = () => {
             {/* Present but disabled. Each becomes live with the phase that
                 builds the page behind it. A tab that navigates nowhere is a
                 dead control; one that says "later" is a map. */}
-            <TabsTrigger value="resources" disabled>
+            <TabsTrigger value="resources">
               <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
               Resources
             </TabsTrigger>
@@ -371,6 +372,10 @@ const Admin = () => {
               <MembersAdmin communities={communities} />
             </TabsContent>
           )}
+
+          <TabsContent value="resources" className="mt-6">
+            <ResourcesAdmin />
+          </TabsContent>
 
           <TabsContent value="events" className="mt-6">
             <EventsAdmin isAdmin={isAdmin} communities={communities} />

@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   Video,
+  FolderOpen,
   Settings,
   LogOut,
   SlidersHorizontal,
@@ -26,6 +27,7 @@ const navItems = [
   { icon: BookOpen, label: "My Courses", href: "/courses" },
   { icon: CalendarDays, label: "Events", href: "/events" },
   { icon: Video, label: "Replays", href: "/replays" },
+  { icon: FolderOpen, label: "Resources", href: "/resources" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
