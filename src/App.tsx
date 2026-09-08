@@ -15,6 +15,7 @@ import Replays from "./pages/Replays";
 import Resources from "./pages/Resources";
 import CommunityPage from "./pages/Community";
 import Messages from "./pages/Messages";
+import Achievements from "./pages/Achievements";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -106,6 +107,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Messages />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/achievements"
+            element={
+              <ProtectedRoute>
+                <Achievements />
               </ProtectedRoute>
             }
           />
