@@ -7,6 +7,7 @@ import {
   Video,
   FolderOpen,
   Users,
+  MessageSquare,
   Settings,
   LogOut,
   SlidersHorizontal,
@@ -29,6 +30,7 @@ const navItems = [
   { icon: CalendarDays, label: "Events", href: "/events" },
   { icon: Video, label: "Replays", href: "/replays" },
   { icon: FolderOpen, label: "Resources", href: "/resources" },
+  { icon: MessageSquare, label: "Community", href: "/community" },
   { icon: Users, label: "Members", href: "/members" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];

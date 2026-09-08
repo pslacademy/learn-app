@@ -14,6 +14,7 @@ import Events from "./pages/Events";
 import Replays from "./pages/Replays";
 import Resources from "./pages/Resources";
 import Directory from "./pages/Directory";
+import CommunityPage from "./pages/Community";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -84,6 +85,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Resources />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community"
+            element={
+              <ProtectedRoute>
+                <CommunityPage />
               </ProtectedRoute>
             }
           />
