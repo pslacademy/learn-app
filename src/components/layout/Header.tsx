@@ -110,6 +110,15 @@ export function Header() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <a
+          href={BRAND.links.contact}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:block"
+        >
+          Contact support
+        </a>
+
         <DropdownMenu
           onOpenChange={(open) => {
             /* Opening it is reading it. A separate "mark all read" would be a
@@ -171,15 +180,6 @@ export function Header() {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <a
-          href={BRAND.links.contact}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:block"
-        >
-          Contact support
-        </a>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

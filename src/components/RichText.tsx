@@ -328,6 +328,21 @@ export const RichTextEditor = ({
             className="rounded-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
 
+          {/* Somebody typing @ into an empty room should be told the room is
+              empty. Silence looks exactly like a broken feature, which is how
+              this was first reported. */}
+          {query !== null && mentions.length === 0 && (
+            <div className="absolute bottom-2 left-2 z-20 rounded-md border bg-popover px-3 py-2 text-xs text-muted-foreground shadow-md">
+              Nobody else is in this community yet.
+            </div>
+          )}
+
+          {query !== null && mentions.length > 0 && matches.length === 0 && (
+            <div className="absolute bottom-2 left-2 z-20 rounded-md border bg-popover px-3 py-2 text-xs text-muted-foreground shadow-md">
+              No member matches that name.
+            </div>
+          )}
+
           {matches.length > 0 && (
             <div className="absolute bottom-2 left-2 z-20 w-64 overflow-hidden rounded-md border bg-popover shadow-md">
               {matches.map((m) => (
