@@ -301,31 +301,27 @@ export const authorInitials = (a: Author | null): string =>
  * about who is in a room.
  */
 export const spaceMemberIds = async (communityId: string): Promise<string[]> => {
-  const { data: community } = await supabase
-    .from("communities")
-    .select("is_free")
-    .eq("id", communityId)
-    .maybeSingle();
+  /*
+    Asked of the database, not worked out here.
 
-  if (!community?.is_free) {
-    const { data } = await supabase
-      .from("member_communities")
-      .select("member_id")
-      .eq("community_id", communityId);
-    return (data ?? []).map((l) => l.member_id as string);
+    A member may only read their own row of member_communities, so computing
+    this in the browser gave a member a list containing only themselves: the @
+    menu offered them their own name and nobody else, while the team saw
+    everybody. The database can answer safely because it can check first
+    whether the caller may read that space at all.
+  */
+  const { data, error } = await supabase.rpc("space_member_ids", {
+    p_community: communityId,
+  });
+
+  if (error) {
+    console.error("Could not read the space's members:", error.message);
+    return [];
   }
 
-  const [{ data: all }, { data: paidRows }] = await Promise.all([
-    supabase.from("profiles").select("id"),
-    supabase
-      .from("member_communities")
-      .select("member_id, communities!inner(is_free, is_active)")
-      .eq("communities.is_free", false)
-      .eq("communities.is_active", true),
-  ]);
-
-  const hasPaid = new Set((paidRows ?? []).map((r) => r.member_id as string));
-  return (all ?? []).map((p) => p.id as string).filter((id) => !hasPaid.has(id));
+  return (data ?? []).map((row: unknown) =>
+    typeof row === "string" ? row : (row as { space_member_ids: string }).space_member_ids,
+  );
 };
 
 /**
