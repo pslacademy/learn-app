@@ -21,7 +21,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -54,6 +53,7 @@ import {
 } from "@/lib/community";
 import { cn } from "@/lib/utils";
 import { DirectoryList } from "@/components/community/DirectoryList";
+import { Markdown, RichTextEditor } from "@/components/RichText";
 
 /**
  * The community space.
@@ -190,12 +190,6 @@ const CommunityPage = () => {
 
         setCommunities(visible);
 
-        const fromUrl = params.get("community");
-        setSpaceId(
-          fromUrl && visible.some((c) => c.id === fromUrl)
-            ? fromUrl
-            : (visible[0]?.id ?? null),
-        );
         setLoading(false);
       },
     );
@@ -205,6 +199,23 @@ const CommunityPage = () => {
     if (!spaceId) return;
     setPosts(await listPosts(spaceId, channel));
   }, [spaceId, channel]);
+
+  /*
+    Follow the URL rather than reading it once.
+
+    The sidebar changes the address; without this the page kept whichever
+    community it happened to load with, so the switcher moved the address bar
+    and left the heading and the feed showing the previous community.
+  */
+  useEffect(() => {
+    if (communities.length === 0) return;
+    const fromUrl = params.get("community");
+    setSpaceId(
+      fromUrl && communities.some((c) => c.id === fromUrl)
+        ? fromUrl
+        : (communities[0]?.id ?? null),
+    );
+  }, [params, communities]);
 
   useEffect(() => {
     if (spaceId && space && space !== "directory") load();
@@ -411,8 +422,8 @@ const CommunityPage = () => {
         {canPost ? (
           <Card>
             <CardContent className="space-y-3 p-4">
-              <Textarea
-                rows={3}
+              <RichTextEditor
+                rows={4}
                 placeholder={
                   channel === "announcements"
                     ? "Post an announcement to this community"
@@ -421,7 +432,7 @@ const CommunityPage = () => {
                       : "What went well?"
                 }
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
               />
               {/* Media is the team's, because there is no upload path and the
                   database strips it from anyone else. Hiding the field saves
@@ -541,10 +552,10 @@ const CommunityPage = () => {
 
                     {editing === p.id ? (
                       <div className="space-y-2">
-                        <Textarea
-                          rows={3}
+                        <RichTextEditor
+                          rows={4}
                           value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
+                          onChange={setEditText}
                         />
                         <div className="flex gap-2">
                           <Button
@@ -570,7 +581,7 @@ const CommunityPage = () => {
                         </div>
                       </div>
                     ) : (
-                      <p className="whitespace-pre-line">{p.content}</p>
+                      <Markdown text={p.content} />
                     )}
 
                     {p.media_url && <Media url={p.media_url} />}
@@ -635,9 +646,9 @@ const CommunityPage = () => {
                                   </ConfirmDelete>
                                 )}
                               </div>
-                              <p className="whitespace-pre-line pl-12 text-sm">
-                                {c.content}
-                              </p>
+                              <div className="pl-12">
+                                <Markdown text={c.content} />
+                              </div>
                               {c.media_url && (
                                 <div className="pl-12">
                                   <Media url={c.media_url} />

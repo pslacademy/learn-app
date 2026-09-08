@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Markdown, RichTextEditor } from "@/components/RichText";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -197,12 +197,12 @@ export const CommunityAdmin = ({ communities }: Props) => {
 
           <div className="space-y-2">
             <Label htmlFor="announcement">Message</Label>
-            <Textarea
+            <RichTextEditor
               id="announcement"
-              rows={5}
+              rows={6}
               placeholder="Type your announcement here"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={setMessage}
             />
           </div>
 
@@ -287,9 +287,9 @@ export const CommunityAdmin = ({ communities }: Props) => {
                           </Badge>
                         )}
                       </p>
-                      <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
-                        {q.content}
-                      </p>
+                      <div className="mt-1 text-muted-foreground">
+                        <Markdown text={q.content} />
+                      </div>
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                         <MessageSquare className="h-3 w-3" aria-hidden="true" />
                         {q.replies} {q.replies === 1 ? "reply" : "replies"}

@@ -196,9 +196,10 @@ export function Sidebar({ className }: { className?: string }) {
                       value={viewing ?? ""}
                       onValueChange={(v) => {
                         setViewing(v);
-                        navigate(
-                          `/community?space=${currentSpace ?? "announcements"}&community=${v}`,
-                        );
+                        /* To that community's home, not to the same channel in
+                           it. Changing community is changing room, and the
+                           overview says whose room it is. */
+                        navigate(`/community?community=${v}`);
                       }}
                     >
                       <SelectTrigger className="h-8 border-primary/20 bg-primary/10 text-xs font-medium text-primary">
