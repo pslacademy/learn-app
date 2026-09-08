@@ -46,6 +46,7 @@ import {
   mediaKind,
   authorName,
   authorInitials,
+  spaceMembers,
   type Channel,
   type Post,
   type Comment,
@@ -53,7 +54,8 @@ import {
 } from "@/lib/community";
 import { cn } from "@/lib/utils";
 import { DirectoryList } from "@/components/community/DirectoryList";
-import { Markdown, RichTextEditor } from "@/components/RichText";
+import { Markdown, RichTextEditor, type MentionCandidate } from "@/components/RichText";
+import { notifyForComment, notifyForPost } from "@/lib/notifications";
 
 /**
  * The community space.
@@ -172,6 +174,7 @@ const CommunityPage = () => {
   const [editText, setEditText] = useState("");
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [commentMedia, setCommentMedia] = useState<Record<string, string>>({});
+  const [mentionable, setMentionable] = useState<MentionCandidate[]>([]);
 
   const isTeam = Boolean(profile?.is_admin || profile?.is_editor);
   const isAdmin = Boolean(profile?.is_admin);
@@ -221,6 +224,28 @@ const CommunityPage = () => {
     if (spaceId && space && space !== "directory") load();
   }, [spaceId, channel, space, load]);
 
+  /* Who can be named here. Reloaded when the space changes, because the @
+     menu must never offer somebody the database would refuse to notify. */
+  useEffect(() => {
+    if (!spaceId) return;
+    let cancelled = false;
+    spaceMembers(spaceId).then((people) => {
+      if (cancelled) return;
+      setMentionable(
+        people
+          .filter((p) => p.first_name)
+          .map((p) => ({
+            id: p.id,
+            name: [p.first_name, p.last_name].filter(Boolean).join(" "),
+            title: p.title,
+          })),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [spaceId]);
+
   const community = communities.find((c) => c.id === spaceId) ?? null;
   const canPost = channel !== "announcements" || isTeam;
   const canPin = channel === "announcements" ? isTeam : isAdmin;
@@ -249,6 +274,13 @@ const CommunityPage = () => {
     if (ok) {
       setDraft("");
       setDraftMedia("");
+
+      /* Tell anybody named. Asked for after the fact and allowed to fail
+         quietly: the post is written either way, and a member who has said
+         their piece must not be told otherwise because a bell did not ring. */
+      const fresh = await listPosts(spaceId, channel);
+      const mine = fresh.find((x) => x.author_id === profile?.id);
+      if (mine) await notifyForPost(mine.id);
     }
   };
 
@@ -262,6 +294,13 @@ const CommunityPage = () => {
     if (ok) {
       setCommentDraft((d) => ({ ...d, [postId]: "" }));
       setCommentMedia((d) => ({ ...d, [postId]: "" }));
+
+      const fresh = await listPosts(spaceId!, channel);
+      const parent = fresh.find((x) => x.id === postId);
+      const mine = parent?.comments
+        .filter((c) => c.author_id === profile?.id)
+        .slice(-1)[0];
+      if (mine) await notifyForComment(mine.id);
     }
   };
 
@@ -433,6 +472,7 @@ const CommunityPage = () => {
                 }
                 value={draft}
                 onChange={setDraft}
+                mentions={mentionable}
               />
               {/* Media is the team's, because there is no upload path and the
                   database strips it from anyone else. Hiding the field saves
@@ -556,6 +596,7 @@ const CommunityPage = () => {
                           rows={4}
                           value={editText}
                           onChange={setEditText}
+                          mentions={mentionable}
                         />
                         <div className="flex gap-2">
                           <Button
@@ -688,27 +729,23 @@ const CommunityPage = () => {
                     )}
 
                     <div className="space-y-2 border-t pt-3">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Write a comment"
-                          value={commentDraft[p.id] ?? ""}
-                          onChange={(e) =>
-                            setCommentDraft((d) => ({ ...d, [p.id]: e.target.value }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              comment(p.id);
-                            }
-                          }}
-                        />
+                      <RichTextEditor
+                        rows={2}
+                        placeholder="Write a comment"
+                        value={commentDraft[p.id] ?? ""}
+                        onChange={(v) =>
+                          setCommentDraft((d) => ({ ...d, [p.id]: v }))
+                        }
+                        mentions={mentionable}
+                      />
+                      <div className="flex justify-end">
                         <Button
-                          size="icon"
+                          size="sm"
                           disabled={busy || !(commentDraft[p.id] ?? "").trim()}
                           onClick={() => comment(p.id)}
-                          aria-label="Post comment"
                         >
-                          <Send className="h-4 w-4" />
+                          <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Comment
                         </Button>
                       </div>
                       {isTeam && (

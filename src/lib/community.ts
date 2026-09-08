@@ -279,3 +279,46 @@ export const authorName = (a: Author | null): string =>
 
 export const authorInitials = (a: Author | null): string =>
   a ? `${a.first_name?.[0] ?? ""}${a.last_name?.[0] ?? ""}` || "?" : "?";
+
+/**
+ * Who is in this space, for the @ menu.
+ *
+ * Only names that the database will actually match. Offering somebody the
+ * composer cannot notify would be worse than offering nobody: they would type
+ * the name, see it accepted, and assume the person had been told.
+ *
+ * The team can read every profile, so this is filtered to the space rather
+ * than to what the reader happens to be able to see.
+ */
+export const spaceMembers = async (communityId: string): Promise<Author[]> => {
+  const [{ data: links }, { data: community }] = await Promise.all([
+    supabase.from("member_communities").select("member_id").eq("community_id", communityId),
+    supabase.from("communities").select("is_free").eq("id", communityId).maybeSingle(),
+  ]);
+
+  let ids = (links ?? []).map((l) => l.member_id as string);
+
+  /*
+    The free community holds no rows: everyone with no paid community is in
+    it. So its membership is everybody who is not in one of the others.
+  */
+  if (community?.is_free) {
+    const [{ data: all }, { data: paid }] = await Promise.all([
+      supabase.from("profiles").select("id"),
+      supabase.from("member_communities").select("member_id"),
+    ]);
+    const hasPaid = new Set((paid ?? []).map((p) => p.member_id as string));
+    ids = (all ?? [])
+      .map((p) => p.id as string)
+      .filter((id) => !hasPaid.has(id));
+  }
+
+  if (ids.length === 0) return [];
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, title, avatar_url, is_admin, is_editor")
+    .in("id", ids);
+
+  return (data ?? []) as Author[];
+};

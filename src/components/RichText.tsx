@@ -1,4 +1,4 @@
-import { ReactNode, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Bold, Italic, Link2, List, ListOrdered, Eye, EyeOff } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -136,12 +136,24 @@ export const Markdown = ({ text }: { text: string }) => {
 
 /* ── Writing ───────────────────────────────────────────────────────── */
 
+export interface MentionCandidate {
+  id: string;
+  name: string;
+  title?: string | null;
+}
+
 interface EditorProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   rows?: number;
   id?: string;
+  /**
+   * Who may be mentioned here. Only people the database will actually notify:
+   * offering a name that cannot be notified is worse than offering none,
+   * because the writer would assume the person had been told.
+   */
+  mentions?: MentionCandidate[];
 }
 
 export const RichTextEditor = ({
@@ -150,9 +162,54 @@ export const RichTextEditor = ({
   placeholder,
   rows = 5,
   id,
+  mentions = [],
 }: EditorProps) => {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [preview, setPreview] = useState(false);
+  const [query, setQuery] = useState<string | null>(null);
+
+  /*
+    Watch what is being typed after an @, up to the cursor. Closed as soon as
+    the word contains something that could not be part of a name, so a stray @
+    in an address does not leave a menu hanging open.
+  */
+  const updateMention = (text: string, caret: number) => {
+    const upToCaret = text.slice(0, caret);
+    const at = upToCaret.lastIndexOf("@");
+    if (at === -1) return setQuery(null);
+
+    const after = upToCaret.slice(at + 1);
+    if (after.includes("\n") || after.length > 30) return setQuery(null);
+    // A name is words and spaces. Anything else means they have moved on.
+    if (!/^[\p{L}\s'-]*$/u.test(after)) return setQuery(null);
+
+    setQuery(after);
+  };
+
+  const insertMention = (name: string) => {
+    const el = ref.current;
+    if (!el) return;
+    const caret = el.selectionStart;
+    const at = value.slice(0, caret).lastIndexOf("@");
+    if (at === -1) return;
+
+    const next = value.slice(0, at) + "@" + name + " " + value.slice(caret);
+    onChange(next);
+    setQuery(null);
+
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = at + name.length + 2;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const matches =
+    query === null
+      ? []
+      : mentions
+          .filter((m) => m.name.toLowerCase().includes(query.trim().toLowerCase()))
+          .slice(0, 6);
 
   /**
    * Wrap the selection, or insert the marker where the cursor is.
@@ -250,20 +307,55 @@ export const RichTextEditor = ({
           )}
         </div>
       ) : (
-        <Textarea
-          id={id}
-          ref={ref}
-          rows={rows}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="rounded-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-        />
+        <div className="relative">
+          <Textarea
+            id={id}
+            ref={ref}
+            rows={rows}
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              updateMention(e.target.value, e.target.selectionStart);
+            }}
+            onKeyUp={(e) =>
+              updateMention(
+                (e.target as HTMLTextAreaElement).value,
+                (e.target as HTMLTextAreaElement).selectionStart,
+              )
+            }
+            onBlur={() => window.setTimeout(() => setQuery(null), 150)}
+            className="rounded-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+
+          {matches.length > 0 && (
+            <div className="absolute bottom-2 left-2 z-20 w-64 overflow-hidden rounded-md border bg-popover shadow-md">
+              {matches.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onMouseDown={(e) => {
+                    // mousedown, not click: blur would close the menu first.
+                    e.preventDefault();
+                    insertMention(m.name);
+                  }}
+                  className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted"
+                >
+                  <span className="font-medium">{m.name}</span>
+                  {m.title && (
+                    <span className="text-xs text-muted-foreground">{m.title}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <p className="border-t bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-        Select text and use the buttons, or write Markdown. Links open in a new
-        tab.
+        Select text and use the buttons, or write Markdown.
+        {mentions.length > 0 ? " Type @ to mention someone." : ""} Links open in
+        a new tab.
       </p>
     </div>
   );

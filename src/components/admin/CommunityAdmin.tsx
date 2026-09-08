@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/account";
 import type { Community } from "@/lib/communities";
 import { authorName, authorInitials, type Author } from "@/lib/community";
+import { notifyForPost } from "@/lib/notifications";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 /**
@@ -129,15 +130,25 @@ export const CommunityAdmin = ({ communities }: Props) => {
       comments from one community appearing in another, which is exactly what
       separate spaces are for preventing.
     */
-    const { error } = await supabase.from("community_posts").insert(
-      targets.map((community_id) => ({
-        community_id,
-        channel: "announcements" as const,
-        author_id: profile.id,
-        content: message.trim(),
-        media_url: media.trim() || null,
-      })),
-    );
+    const { data: created, error } = await supabase
+      .from("community_posts")
+      .insert(
+        targets.map((community_id) => ({
+          community_id,
+          channel: "announcements" as const,
+          author_id: profile.id,
+          content: message.trim(),
+          media_url: media.trim() || null,
+        })),
+      )
+      .select("id");
+
+    /* Tell anybody named, per community, since the same words in two spaces
+       name two different sets of people. Allowed to fail quietly: the
+       announcement is posted either way. */
+    for (const row of created ?? []) {
+      await notifyForPost(row.id as string);
+    }
 
     setSending(false);
 

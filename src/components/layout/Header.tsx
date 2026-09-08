@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, LogOut, Settings as SettingsIcon } from "lucide-react";
+import {
+  Menu,
+  LogOut,
+  Bell,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -15,17 +20,29 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./Sidebar";
 import { BRAND } from "@/config/brand";
 import { getProfile, signOut, type Profile } from "@/lib/account";
+import {
+  getNotifications,
+  unreadCount,
+  markAllRead,
+  notificationLine,
+  notificationHref,
+  type Notification,
+} from "@/lib/notifications";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
 /**
  * The top bar.
  *
- * No notification bell yet. The bell in EI Academy reads a real notifications
- * table; there is nothing to read until the phase that builds one, and a bell
- * that permanently says "nothing here" is a dead control.
+ * The bell reads the notifications table, which only ever contains rows the
+ * database wrote. Opening it marks everything read, which is what everybody
+ * expects and saves a second control nobody would use.
  */
 export function Header() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,13 +51,30 @@ export function Header() {
         if (!cancelled) setProfile(p);
       });
 
+    const loadBell = async () => {
+      const [list, count] = await Promise.all([
+        getNotifications(),
+        unreadCount(),
+      ]);
+      if (cancelled) return;
+      setNotifications(list);
+      setUnread(count);
+    };
+
     load();
+    loadBell();
+
+    /* Polled rather than subscribed. A live subscription is the better answer
+       once there are people in the room; a minute is soon enough for a bell
+       and costs one query. */
+    const timer = window.setInterval(loadBell, 60_000);
 
     // Settings dispatches this after a save so the name and picture up here
     // change at the same moment as the form below.
     window.addEventListener("profileUpdate", load);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
       window.removeEventListener("profileUpdate", load);
     };
   }, []);
@@ -76,6 +110,68 @@ export function Header() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <DropdownMenu
+          onOpenChange={(open) => {
+            /* Opening it is reading it. A separate "mark all read" would be a
+               control nobody presses, leaving a badge that never clears. */
+            if (open && unread > 0) {
+              markAllRead().then(() => setUnread(0));
+            }
+          }}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              aria-label={
+                unread > 0 ? `Notifications, ${unread} unread` : "Notifications"
+              }
+            >
+              <Bell size={20} />
+              {unread > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {notifications.length === 0 ? (
+              <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                Nothing yet.
+              </p>
+            ) : (
+              notifications.map((n) => (
+                <DropdownMenuItem key={n.id} asChild>
+                  <Link to={notificationHref(n)} className="flex-col items-start gap-1">
+                    <span className="flex w-full items-center justify-between gap-2">
+                      <span className="text-sm font-medium">
+                        {notificationLine(n)}
+                      </span>
+                      {!n.read_at && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          New
+                        </Badge>
+                      )}
+                    </span>
+                    {n.excerpt && (
+                      <span className="line-clamp-2 text-xs text-muted-foreground">
+                        {n.excerpt}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString("en-AU")}
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <a
           href={BRAND.links.contact}
           target="_blank"
