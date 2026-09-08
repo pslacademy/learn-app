@@ -631,6 +631,9 @@ Deno.serve(async (req) => {
       if (p.allowMessaging !== undefined) {
         patch.allow_messaging = Boolean(p.allowMessaging);
       }
+      if (p.showInDirectory !== undefined) {
+        patch.show_in_directory = Boolean(p.showInDirectory);
+      }
       if (p.notifyCourseUpdates !== undefined) {
         patch.notify_course_updates = Boolean(p.notifyCourseUpdates);
       }

@@ -13,6 +13,7 @@ import Admin from "./pages/Admin";
 import Events from "./pages/Events";
 import Replays from "./pages/Replays";
 import Resources from "./pages/Resources";
+import Directory from "./pages/Directory";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -83,6 +84,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Resources />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/members"
+            element={
+              <ProtectedRoute>
+                <Directory />
               </ProtectedRoute>
             }
           />

@@ -76,6 +76,7 @@ const Settings = () => {
     avatar: "",
     // Opt in. Members are not contactable until they choose to be.
     allowMessaging: false,
+    showInDirectory: true,
     notifyCourseUpdates: true,
     notifyCommunityMentions: true,
     notifyMarketing: false,
@@ -100,6 +101,7 @@ const Settings = () => {
           bio: p.bio ?? "",
           avatar: p.avatar_url ?? "",
           allowMessaging: p.allow_messaging,
+          showInDirectory: p.show_in_directory,
           notifyCourseUpdates: p.notify_course_updates,
           notifyCommunityMentions: p.notify_community_mentions,
           notifyMarketing: p.notify_marketing,
@@ -141,6 +143,7 @@ const Settings = () => {
       bio: profile.bio,
       avatarUrl: profile.avatar,
       allowMessaging: profile.allowMessaging,
+      showInDirectory: profile.showInDirectory,
       notifyCourseUpdates: profile.notifyCourseUpdates,
       notifyCommunityMentions: profile.notifyCommunityMentions,
       notifyMarketing: profile.notifyMarketing,
@@ -631,21 +634,43 @@ const Settings = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="allow-messaging">Allow direct messages</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Let other members send you private messages. Off until you
-                      turn it on.
-                    </p>
+                <div className="space-y-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="show-in-directory">
+                        Show me in the member directory
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Other members of your paid communities can see your
+                        name, picture, role, country and bio. Never your email.
+                        Turning this off hides you; you can still browse.
+                      </p>
+                    </div>
+                    <Switch
+                      id="show-in-directory"
+                      checked={profile.showInDirectory}
+                      onCheckedChange={(v) =>
+                        setProfile({ ...profile, showInDirectory: v })
+                      }
+                    />
                   </div>
-                  <Switch
-                    id="allow-messaging"
-                    checked={profile.allowMessaging}
-                    onCheckedChange={(v) =>
-                      setProfile({ ...profile, allowMessaging: v })
-                    }
-                  />
+
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="allow-messaging">Allow direct messages</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Let other members send you private messages. Off until
+                        you turn it on.
+                      </p>
+                    </div>
+                    <Switch
+                      id="allow-messaging"
+                      checked={profile.allowMessaging}
+                      onCheckedChange={(v) =>
+                        setProfile({ ...profile, allowMessaging: v })
+                      }
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

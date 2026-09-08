@@ -25,6 +25,8 @@ export interface Profile {
   /** IANA name, e.g. Australia/Sydney. */
   timezone: string | null;
   allow_messaging: boolean;
+  /** Member preference. On by default. Only affects paid communities. */
+  show_in_directory: boolean;
   notify_course_updates: boolean;
   notify_community_mentions: boolean;
   notify_marketing: boolean;
@@ -184,6 +186,7 @@ export interface ProfileInput {
   /** A data URL. Kept under 800K by the caller. */
   avatarUrl?: string;
   allowMessaging?: boolean;
+  showInDirectory?: boolean;
   notifyCourseUpdates?: boolean;
   notifyCommunityMentions?: boolean;
   notifyMarketing?: boolean;
