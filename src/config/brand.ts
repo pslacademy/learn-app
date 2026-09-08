@@ -60,10 +60,26 @@ export const BRAND = {
      * only ever verifies that a contact already exists.
      */
     registrationForm:
-      "https://link.peoplebuilders.com.au/widget/form/MYdYpCKrU2OiKQY2s6ni",
-    registrationFormLoader:
-      "https://link.peoplebuilders.com.au/js/form_embed.js",
+      "https://academy.professionalservicesleadership.com/widget/form/MYdYpCKrU2OiKQY2s6ni",
     registrationPage: "https://professionalservicesleadership.com/community",
+
+    /**
+     * The support request form, embedded on the Support page.
+     *
+     * Same GoHighLevel account and the same white-label domain as the
+     * registration form, so a member sees one domain wherever they are asked
+     * for something.
+     */
+    supportForm:
+      "https://academy.professionalservicesleadership.com/widget/form/b9sh5zQ93uUnda8SZ7QS",
+
+    /**
+     * GoHighLevel's embed script, shared by both forms. One entry rather than
+     * one per form: they are served from the same host, and two copies would
+     * eventually disagree about which host that is.
+     */
+    formLoader:
+      "https://academy.professionalservicesleadership.com/js/form_embed.js",
   },
 
   support: {

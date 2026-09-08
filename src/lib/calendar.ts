@@ -14,6 +14,7 @@
 
 import type { AcademyEvent } from "./events";
 import { ruleFor, nextOccurrence, type RecurrenceRule } from "./recurrence";
+import { BRAND } from "@/config/brand";
 
 /**
  * A wall-clock time in a named zone, as a real instant.
@@ -266,7 +267,13 @@ export const buildIcs = (event: AcademyEvent, url: string): string | null => {
   // fallback, so Apple never shows the events page where a Zoom link belongs.
   const eventUrl = link || url;
 
-  const uid = `${event.id || stampUtc(times.start)}@eia.peoplebuilders.com.au`;
+  /*
+    The identifier a calendar uses to recognise this event again, so that a
+    second import updates the entry rather than creating a duplicate. It must
+    be this academy's domain: carried across from EI Academy, it labelled PSLA
+    sessions as belonging to a different academy.
+  */
+  const uid = `${event.id || stampUtc(times.start)}@${BRAND.domain}`;
   const rrule = buildRRule(event);
 
   // A URI property is not a text property: it is not escaped, but a stray

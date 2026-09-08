@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Trophy,
   ChevronDown,
+  MessageSquare,
   Settings,
   LogOut,
   SlidersHorizontal,
@@ -56,6 +57,7 @@ const communitySpaces = [
 ];
 
 const secondaryItems = [
+  { icon: MessageSquare, label: "Messages", href: "/messages" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 

@@ -31,12 +31,12 @@ export const RegistrationModal = ({ isOpen, onClose }: Props) => {
     if (!isOpen) return;
 
     const existing = document.querySelector(
-      `script[src="${BRAND.links.registrationFormLoader}"]`,
+      `script[src="${BRAND.links.formLoader}"]`,
     );
     if (existing) return;
 
     const script = document.createElement("script");
-    script.src = BRAND.links.registrationFormLoader;
+    script.src = BRAND.links.formLoader;
     script.async = true;
     document.body.appendChild(script);
   }, [isOpen]);

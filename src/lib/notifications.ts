@@ -86,8 +86,14 @@ export const notifyForPost = async (postId: string): Promise<void> => {
 };
 
 /** Where the bell should take you. */
-export const notificationHref = (n: Notification): string =>
-  n.post_id ? `/community?space=questions` : "/community";
+export const notificationHref = (n: Notification): string => {
+  /* A message goes to the conversation with whoever sent it, not to a
+     general inbox: the point of the bell is to land on the thing itself. */
+  if (n.kind === "message") {
+    return n.actor_id ? `/messages?with=${n.actor_id}` : "/messages";
+  }
+  return n.post_id ? "/community?space=questions" : "/community";
+};
 
 export const notificationLine = (n: Notification): string => {
   const who = n.actor_name ?? "Somebody";

@@ -14,6 +14,7 @@ import Events from "./pages/Events";
 import Replays from "./pages/Replays";
 import Resources from "./pages/Resources";
 import CommunityPage from "./pages/Community";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -99,6 +100,14 @@ const App = () => (
           <Route
             path="/members"
             element={<Navigate to="/community?space=directory" replace />}
+          />
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <Messages />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/admin"
