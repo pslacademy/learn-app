@@ -17,6 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -37,7 +44,7 @@ import { cn } from "@/lib/utils";
  * remit, deliberately.
  *
  * Roles are not editable here. is_admin and is_editor come from GoHighLevel
- * tags and nowhere else, so the CRM stays the single answer to who staff are.
+ * tags and nowhere else, so the CRM stays the single answer to who is on the team.
  * A second way to grant admin would mean two sources of truth and, sooner or
  * later, an argument about which is right.
  *
@@ -60,9 +67,11 @@ export const MembersAdmin = ({ communities }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "staff" | "suspended" | "inactive">(
-    "all",
-  );
+  const [filter, setFilter] = useState<
+    "all" | "members" | "team" | "suspended" | "inactive"
+  >("all");
+  /** "any" or a community id. Combines with the status filter, not instead of it. */
+  const [community, setCommunity] = useState<string>("any");
   const [target, setTarget] = useState<Row | null>(null);
   const [reason, setReason] = useState("");
 
@@ -107,17 +116,33 @@ export const MembersAdmin = ({ communities }: Props) => {
 
   const freeCommunity = communities.find((c) => c.is_free);
 
+  /*
+    Is this person in that community?
+
+    The free community is never stored against anybody, because every
+    signed-in account is in it by definition. So filtering by it must mean
+    "everyone" rather than "nobody", which is what reading the table alone
+    would give.
+  */
+  const inCommunity = (row: Row, communityId: string): boolean => {
+    if (communityId === "any") return true;
+    if (freeCommunity && communityId === freeCommunity.id) return true;
+    return row.communities.includes(communityId);
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
-      if (filter === "staff" && !r.is_admin && !r.is_editor) return false;
+      if (filter === "team" && !r.is_admin && !r.is_editor) return false;
+      if (filter === "members" && (r.is_admin || r.is_editor)) return false;
       if (filter === "suspended" && !r.suspended_at) return false;
       if (filter === "inactive" && r.is_active) return false;
+      if (!inCommunity(r, community)) return false;
       if (!q) return true;
       const name = `${r.first_name ?? ""} ${r.last_name ?? ""}`.toLowerCase();
       return name.includes(q) || r.email.toLowerCase().includes(q);
     });
-  }, [rows, query, filter]);
+  }, [rows, query, filter, community, freeCommunity]);
 
   const suspend = async () => {
     if (!target) return;
@@ -175,11 +200,22 @@ export const MembersAdmin = ({ communities }: Props) => {
     toast({ title: "Reinstated" });
   };
 
+  /*
+    Counted after the community filter, so the numbers describe what you are
+    actually looking at. A count that ignores the dropdown says 40 while the
+    list below shows 3, and then nobody trusts either number.
+  */
+  const scoped = useMemo(
+    () => rows.filter((r) => inCommunity(r, community)),
+    [rows, community, freeCommunity],
+  );
+
   const counts = {
-    all: rows.length,
-    staff: rows.filter((r) => r.is_admin || r.is_editor).length,
-    suspended: rows.filter((r) => r.suspended_at).length,
-    inactive: rows.filter((r) => !r.is_active).length,
+    all: scoped.length,
+    members: scoped.filter((r) => !r.is_admin && !r.is_editor).length,
+    team: scoped.filter((r) => r.is_admin || r.is_editor).length,
+    suspended: scoped.filter((r) => r.suspended_at).length,
+    inactive: scoped.filter((r) => !r.is_active).length,
   };
 
   if (loading) {
@@ -202,11 +238,27 @@ export const MembersAdmin = ({ communities }: Props) => {
           />
         </div>
 
+        <Select value={community} onValueChange={setCommunity}>
+          <SelectTrigger className="w-full sm:w-64">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="any">All communities</SelectItem>
+            {communities.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+                {c.is_free ? " (everyone)" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <div className="flex flex-wrap gap-2">
           {(
             [
               ["all", "Everyone"],
-              ["staff", "Staff"],
+              ["members", "Members"],
+              ["team", "Team"],
               ["suspended", "Suspended"],
               ["inactive", "Not in the CRM"],
             ] as const
@@ -229,7 +281,9 @@ export const MembersAdmin = ({ communities }: Props) => {
           <CardContent className="p-12 text-center text-muted-foreground">
             {rows.length === 0
               ? "Nobody has an account yet."
-              : "Nobody matches that."}
+              : community !== "any"
+                ? `Nobody in ${nameOf(community)} matches that.`
+                : "Nobody matches that."}
           </CardContent>
         </Card>
       ) : (

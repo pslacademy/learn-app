@@ -842,7 +842,7 @@ const Admin = () => {
                             <div>
                               <Label htmlFor="published">Published</Label>
                               <p className="text-sm text-muted-foreground">
-                                Unpublished lessons are visible to staff only.
+                                Unpublished lessons are visible to the team only.
                               </p>
                             </div>
                             <Switch

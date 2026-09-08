@@ -32,14 +32,14 @@ const navItems = [
 export function Sidebar({ className }: { className?: string }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isStaff, setIsStaff] = useState(false);
+  const [isTeam, setIsTeam] = useState(false);
 
-  // Admin is shown only to staff. Hiding it is a courtesy: the page redirects
+  // Admin is shown only to the team. Hiding it is a courtesy: the page redirects
   // and every policy refuses regardless, so this is not what keeps them out.
   useEffect(() => {
     let cancelled = false;
     getProfile().then((p) => {
-      if (!cancelled) setIsStaff(Boolean(p?.is_admin || p?.is_editor));
+      if (!cancelled) setIsTeam(Boolean(p?.is_admin || p?.is_editor));
     });
     return () => {
       cancelled = true;
@@ -73,7 +73,7 @@ export function Sidebar({ className }: { className?: string }) {
         <nav className="space-y-1 px-3">
           {[
             ...navItems,
-            ...(isStaff
+            ...(isTeam
               ? [{ icon: SlidersHorizontal, label: "Admin", href: "/admin" }]
               : []),
           ].map((item) => {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { listCourses, purchaseUrlForCourse, type Course } from "@/lib/courses";
+import { getProfile } from "@/lib/account";
 import {
   loadProgress,
   onProgressChange,
@@ -25,6 +26,7 @@ import {
 const Courses = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [buyLinks, setBuyLinks] = useState<Record<string, string | null>>({});
+  const [isTeam, setIsTeam] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [, tick] = useState(0);
@@ -32,9 +34,11 @@ const Courses = () => {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listCourses(), loadProgress()]).then(async ([list]) => {
+    Promise.all([listCourses(), loadProgress(), getProfile()]).then(
+      async ([list, , profile]) => {
       if (cancelled) return;
       setCourses(list);
+      setIsTeam(Boolean(profile?.is_admin || profile?.is_editor));
       setLoading(false);
 
       const links = await Promise.all(
@@ -43,7 +47,8 @@ const Courses = () => {
           .map(async (c) => [c.id, await purchaseUrlForCourse(c)] as const),
       );
       if (!cancelled) setBuyLinks(Object.fromEntries(links));
-    });
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -189,6 +194,18 @@ const Courses = () => {
                                     Find out more
                                   </a>
                                 </Button>
+                              ) : isTeam && course.community_ids.length === 0 ? (
+                                /* An admin or editor sees every course, so a
+                                   course attached to nothing looks identical to
+                                   one they have not bought. Saying "not part of
+                                   your membership" to the person who owns the
+                                   academy is both wrong and unhelpful: nobody
+                                   can reach it, and they are the one who can
+                                   fix that. */
+                                <p className="text-sm text-amber-700">
+                                  Not attached to any community, so no member can
+                                  reach it. Attach one in Admin.
+                                </p>
                               ) : (
                                 <p className="text-sm text-muted-foreground">
                                   Not part of your membership. Get in touch if you

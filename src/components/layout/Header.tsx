@@ -93,11 +93,20 @@ export function Header() {
             >
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold leading-tight">{name}</p>
-                {profile?.is_admin && (
-                  <p className="text-xs leading-tight text-muted-foreground">
-                    PSLA Admin
-                  </p>
-                )}
+                {/* Everybody gets a label. "Member" is the ordinary case and
+                    saying so is better than an empty space that looks like
+                    something failed to load.
+
+                    It is not a rank. A member holding three communities is
+                    still a member, so the label says who they are rather than
+                    trying to summarise what they hold. */}
+                <p className="text-xs leading-tight text-muted-foreground">
+                  {profile?.is_admin
+                    ? "PSLA Admin"
+                    : profile?.is_editor
+                      ? "PSLA Editor"
+                      : "Member"}
+                </p>
               </div>
               <Avatar className="h-9 w-9">
                 <AvatarImage src={profile?.avatar_url ?? undefined} />
