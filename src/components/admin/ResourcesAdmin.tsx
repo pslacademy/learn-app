@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
+import { UnsavedBar } from "@/components/UnsavedBar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import {
@@ -369,6 +370,17 @@ export const ResourcesAdmin = () => {
           </CardContent>
         </Card>
       )}
+
+      <UnsavedBar
+        dirty={dirty}
+        saving={saving}
+        what="resources"
+        onSave={saveAll}
+        onDiscard={() => {
+          setCatDraft({});
+          setResDraft({});
+        }}
+      />
     </div>
   );
 };

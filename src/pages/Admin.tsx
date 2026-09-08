@@ -40,6 +40,7 @@ import { listCourses, type Course, type Lesson, type Resource } from "@/lib/cour
 import { allCommunities, type Community } from "@/lib/communities";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
+import { UnsavedBar } from "@/components/UnsavedBar";
 import { EventsAdmin } from "@/components/admin/EventsAdmin";
 import { MembersAdmin } from "@/components/admin/MembersAdmin";
 import { ResourcesAdmin } from "@/components/admin/ResourcesAdmin";
@@ -1012,6 +1013,17 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Save all changes is at the top of a long page, so editing a lesson
+          halfway down left no visible way to save it. This appears wherever
+          you are. */}
+      <UnsavedBar
+        dirty={dirty}
+        saving={saving}
+        what="course content"
+        onSave={saveAll}
+        onDiscard={() => setDraft(emptyDraft)}
+      />
     </DashboardLayout>
   );
 };

@@ -9,6 +9,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { UnsavedBar } from "@/components/UnsavedBar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -62,6 +63,9 @@ const Settings = () => {
 
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  /* What was loaded. Dirty is a comparison against this rather than a flag
+     set by every onChange, which is the version that eventually misses one. */
+  const [saved, setSaved] = useState<typeof profile | null>(null);
   const [openTimezone, setOpenTimezone] = useState(false);
   const [openCountry, setOpenCountry] = useState(false);
 
@@ -90,22 +94,26 @@ const Settings = () => {
         return;
       }
       if (p) {
-        setProfile((prev) => ({
-          ...prev,
-          firstName: p.first_name ?? "",
-          lastName: p.last_name ?? "",
-          email: p.email ?? "",
-          title: p.title ?? "",
-          location: p.location ?? "",
-          timezone: p.timezone ?? "",
-          bio: p.bio ?? "",
-          avatar: p.avatar_url ?? "",
-          allowMessaging: p.allow_messaging,
-          showInDirectory: p.show_in_directory,
-          notifyCourseUpdates: p.notify_course_updates,
-          notifyCommunityMentions: p.notify_community_mentions,
-          notifyMarketing: p.notify_marketing,
-        }));
+        setProfile((prev) => {
+          const loaded = {
+            ...prev,
+            firstName: p.first_name ?? "",
+            lastName: p.last_name ?? "",
+            email: p.email ?? "",
+            title: p.title ?? "",
+            location: p.location ?? "",
+            timezone: p.timezone ?? "",
+            bio: p.bio ?? "",
+            avatar: p.avatar_url ?? "",
+            allowMessaging: p.allow_messaging,
+            showInDirectory: p.show_in_directory,
+            notifyCourseUpdates: p.notify_course_updates,
+            notifyCommunityMentions: p.notify_community_mentions,
+            notifyMarketing: p.notify_marketing,
+          };
+          setSaved(loaded);
+          return loaded;
+        });
       }
       setLoading(false);
     });
@@ -158,6 +166,8 @@ const Settings = () => {
       });
       return;
     }
+
+    setSaved(profile);
 
     // Tells the header to re-read the name and picture.
     window.dispatchEvent(new Event("profileUpdate"));
@@ -253,6 +263,11 @@ const Settings = () => {
 
   const initials =
     `${profile.firstName?.[0] ?? ""}${profile.lastName?.[0] ?? ""}` || "U";
+
+  /* Compared field by field rather than tracked by a flag, so a switch nobody
+     remembered to mark dirty still counts. */
+  const dirty =
+    saved !== null && JSON.stringify(saved) !== JSON.stringify(profile);
 
   return (
     <DashboardLayout>
@@ -760,6 +775,16 @@ const Settings = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Appears the moment anything changes, wherever the save button has
+          scrolled to. */}
+      <UnsavedBar
+        dirty={dirty}
+        saving={isSaving}
+        what="settings"
+        onSave={() => save("Settings saved")}
+        onDiscard={() => saved && setProfile(saved)}
+      />
     </DashboardLayout>
   );
 };

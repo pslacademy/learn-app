@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
+import { UnsavedBar } from "@/components/UnsavedBar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import {
@@ -785,6 +786,14 @@ export const EventsAdmin = ({ isAdmin, communities }: Props) => {
           )}
         </CardContent>
       </Card>
+
+      <UnsavedBar
+        dirty={Object.keys(draft).length > 0}
+        saving={saving}
+        what="session"
+        onSave={() => save()}
+        onDiscard={() => setDraft({})}
+      />
     </div>
   );
 };
