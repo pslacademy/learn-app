@@ -290,29 +290,53 @@ export const authorInitials = (a: Author | null): string =>
  * The team can read every profile, so this is filtered to the space rather
  * than to what the reader happens to be able to see.
  */
-export const spaceMembers = async (communityId: string): Promise<Author[]> => {
-  const [{ data: links }, { data: community }] = await Promise.all([
-    supabase.from("member_communities").select("member_id").eq("community_id", communityId),
-    supabase.from("communities").select("is_free").eq("id", communityId).maybeSingle(),
-  ]);
+/**
+ * Who is in this space.
+ *
+ * The free community holds no rows: everyone with no paid community is in it.
+ * So its membership is everybody who is not in one of the others, and that
+ * has to be worked out rather than read.
+ *
+ * Used by the @ menu and by the directory, so the two can never disagree
+ * about who is in a room.
+ */
+export const spaceMemberIds = async (communityId: string): Promise<string[]> => {
+  const { data: community } = await supabase
+    .from("communities")
+    .select("is_free")
+    .eq("id", communityId)
+    .maybeSingle();
 
-  let ids = (links ?? []).map((l) => l.member_id as string);
-
-  /*
-    The free community holds no rows: everyone with no paid community is in
-    it. So its membership is everybody who is not in one of the others.
-  */
-  if (community?.is_free) {
-    const [{ data: all }, { data: paid }] = await Promise.all([
-      supabase.from("profiles").select("id"),
-      supabase.from("member_communities").select("member_id"),
-    ]);
-    const hasPaid = new Set((paid ?? []).map((p) => p.member_id as string));
-    ids = (all ?? [])
-      .map((p) => p.id as string)
-      .filter((id) => !hasPaid.has(id));
+  if (!community?.is_free) {
+    const { data } = await supabase
+      .from("member_communities")
+      .select("member_id")
+      .eq("community_id", communityId);
+    return (data ?? []).map((l) => l.member_id as string);
   }
 
+  const [{ data: all }, { data: paidRows }] = await Promise.all([
+    supabase.from("profiles").select("id"),
+    supabase
+      .from("member_communities")
+      .select("member_id, communities!inner(is_free, is_active)")
+      .eq("communities.is_free", false)
+      .eq("communities.is_active", true),
+  ]);
+
+  const hasPaid = new Set((paidRows ?? []).map((r) => r.member_id as string));
+  return (all ?? []).map((p) => p.id as string).filter((id) => !hasPaid.has(id));
+};
+
+/**
+ * Who may be mentioned here.
+ *
+ * Only names the database will actually notify. Offering somebody the
+ * composer cannot notify is worse than offering nobody: the writer would type
+ * the name, see it accepted, and assume the person had been told.
+ */
+export const spaceMembers = async (communityId: string): Promise<Author[]> => {
+  const ids = await spaceMemberIds(communityId);
   if (ids.length === 0) return [];
 
   const { data } = await supabase
@@ -321,4 +345,37 @@ export const spaceMembers = async (communityId: string): Promise<Author[]> => {
     .in("id", ids);
 
   return (data ?? []) as Author[];
+};
+
+export interface DirectoryMember extends Author {
+  location: string | null;
+  bio: string | null;
+}
+
+/**
+ * The directory for one space.
+ *
+ * Filtered to that community explicitly rather than left to row level
+ * security. The policy answers "may I see this person", which for an admin is
+ * everybody, so relying on it showed the same list under every community.
+ */
+export const communityDirectory = async (
+  communityId: string,
+): Promise<DirectoryMember[]> => {
+  const ids = await spaceMemberIds(communityId);
+  if (ids.length === 0) return [];
+
+  const { data } = await supabase
+    .from("profiles")
+    .select(
+      "id, first_name, last_name, title, avatar_url, is_admin, is_editor, location, bio, show_in_directory",
+    )
+    .in("id", ids)
+    .order("first_name");
+
+  /* A member who opted out is hidden from everyone, including the team.
+     Being listed is their decision, not an administrative one. */
+  return ((data ?? []) as (DirectoryMember & { show_in_directory: boolean })[])
+    .filter((m) => m.show_in_directory)
+    .map(({ show_in_directory: _drop, ...m }) => m);
 };

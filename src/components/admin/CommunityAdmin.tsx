@@ -9,7 +9,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Markdown, RichTextEditor } from "@/components/RichText";
+import {
+  Markdown,
+  RichTextEditor,
+  type MentionCandidate,
+} from "@/components/RichText";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +21,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/account";
 import type { Community } from "@/lib/communities";
-import { authorName, authorInitials, type Author } from "@/lib/community";
+import {
+  authorName,
+  authorInitials,
+  spaceMembers,
+  type Author,
+} from "@/lib/community";
 import { notifyForPost } from "@/lib/notifications";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -55,6 +64,7 @@ export const CommunityAdmin = ({ communities }: Props) => {
   const [message, setMessage] = useState("");
   const [media, setMedia] = useState("");
   const [sending, setSending] = useState(false);
+  const [mentionable, setMentionable] = useState<MentionCandidate[]>([]);
 
   const [questions, setQuestions] = useState<Waiting[]>([]);
   const [showAnswered, setShowAnswered] = useState(false);
@@ -110,6 +120,43 @@ export const CommunityAdmin = ({ communities }: Props) => {
   useEffect(() => {
     load();
   }, []);
+
+  /*
+    Who can be named, given the communities ticked.
+
+    The union of the chosen ones, de-duplicated, because the same announcement
+    goes to each and a name has to be reachable in at least one of them.
+    Nobody ticked means nobody to name, which is honest: the announcement is
+    not going anywhere yet either.
+  */
+  useEffect(() => {
+    let cancelled = false;
+
+    if (targets.length === 0) {
+      setMentionable([]);
+      return;
+    }
+
+    Promise.all(targets.map((id) => spaceMembers(id))).then((lists) => {
+      if (cancelled) return;
+      const byId = new Map<string, Author>();
+      for (const list of lists) for (const p of list) byId.set(p.id, p);
+
+      setMentionable(
+        [...byId.values()]
+          .filter((p) => p.first_name)
+          .map((p) => ({
+            id: p.id,
+            name: [p.first_name, p.last_name].filter(Boolean).join(" "),
+            title: p.title,
+          })),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targets]);
 
   const nameOf = (id: string) =>
     communities.find((c) => c.id === id)?.name ?? "Unknown community";
@@ -214,6 +261,7 @@ export const CommunityAdmin = ({ communities }: Props) => {
               placeholder="Type your announcement here"
               value={message}
               onChange={setMessage}
+              mentions={mentionable}
             />
           </div>
 

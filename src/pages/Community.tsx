@@ -447,7 +447,10 @@ const CommunityPage = () => {
       <DashboardLayout>
         <div className="space-y-6">
           {header}
-          <DirectoryList />
+          <DirectoryList
+            communityId={community.id}
+            communityName={community.name}
+          />
         </div>
       </DashboardLayout>
     );
