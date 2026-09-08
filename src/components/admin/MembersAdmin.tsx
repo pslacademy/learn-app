@@ -116,17 +116,26 @@ export const MembersAdmin = ({ communities }: Props) => {
 
   const freeCommunity = communities.find((c) => c.is_free);
 
+  /** The paid communities this person holds. Rows only exist for those. */
+  const paidHeld = (row: Row): string[] =>
+    row.communities.filter(
+      (id) => !communities.find((c) => c.id === id)?.is_free,
+    );
+
   /*
     Is this person in that community?
 
-    The free community is never stored against anybody, because every
-    signed-in account is in it by definition. So filtering by it must mean
-    "everyone" rather than "nobody", which is what reading the table alone
-    would give.
+    The free community is never stored against anybody, and since membership
+    became exclusive it is a fallback rather than an addition: you are in it
+    only while you hold nothing paid. Filtering by it therefore means "the
+    people who hold nothing else", not "everyone", which is what it meant
+    before and what this used to return.
   */
   const inCommunity = (row: Row, communityId: string): boolean => {
     if (communityId === "any") return true;
-    if (freeCommunity && communityId === freeCommunity.id) return true;
+    if (freeCommunity && communityId === freeCommunity.id) {
+      return paidHeld(row).length === 0;
+    }
     return row.communities.includes(communityId);
   };
 
@@ -347,19 +356,21 @@ export const MembersAdmin = ({ communities }: Props) => {
                   </div>
 
                   <div className="flex min-w-[200px] flex-wrap gap-1">
-                    {/* Everyone signed in is in the free community, whether or
-                        not they hold a tag, so it is shown rather than left
-                        looking as though they belong to nothing. */}
-                    {freeCommunity && (
+                    {/* Membership is exclusive, so the free community is shown
+                        only when they hold nothing paid. Showing it alongside
+                        a paid community said they were in both, which they are
+                        not, and made the list disagree with every other page. */}
+                    {paidHeld(row).length === 0 && freeCommunity ? (
                       <Badge variant="outline" className="text-xs">
                         {freeCommunity.name}
                       </Badge>
+                    ) : (
+                      paidHeld(row).map((id) => (
+                        <Badge key={id} variant="outline" className="text-xs">
+                          {nameOf(id)}
+                        </Badge>
+                      ))
                     )}
-                    {row.communities.map((id) => (
-                      <Badge key={id} variant="outline" className="text-xs">
-                        {nameOf(id)}
-                      </Badge>
-                    ))}
                   </div>
 
                   <div className="text-right text-xs text-muted-foreground">
