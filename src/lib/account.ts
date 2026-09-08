@@ -32,6 +32,10 @@ export interface Profile {
   /** From the psla editor tag. May edit content, may not decide entitlement. */
   is_editor: boolean;
   is_active: boolean;
+  /** Set by an admin. Independent of is_active, which the CRM owns. */
+  suspended_at: string | null;
+  suspended_by: string | null;
+  suspended_reason: string | null;
   crm_contact_id: string | null;
   /** When the CRM was last read. Drives the re-read on open. */
   communities_synced_at: string | null;

@@ -41,6 +41,7 @@ import { allCommunities, type Community } from "@/lib/communities";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { EventsAdmin } from "@/components/admin/EventsAdmin";
+import { MembersAdmin } from "@/components/admin/MembersAdmin";
 
 /**
  * Academy administration.
@@ -351,7 +352,7 @@ const Admin = () => {
               <Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
               Events
             </TabsTrigger>
-            <TabsTrigger value="directory" disabled>
+            <TabsTrigger value="directory" disabled={!isAdmin}>
               <Users className="mr-2 h-4 w-4" aria-hidden="true" />
               Member directory
             </TabsTrigger>
@@ -364,6 +365,12 @@ const Admin = () => {
               Assessments
             </TabsTrigger>
           </TabsList>
+
+          {isAdmin && (
+            <TabsContent value="directory" className="mt-6">
+              <MembersAdmin communities={communities} />
+            </TabsContent>
+          )}
 
           <TabsContent value="events" className="mt-6">
             <EventsAdmin isAdmin={isAdmin} communities={communities} />
