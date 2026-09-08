@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Heart,
   Loader2,
@@ -9,6 +10,10 @@ import {
   Trash2,
   Pencil,
   Link as LinkIcon,
+  Megaphone,
+  HelpCircle,
+  Trophy,
+  ShieldCheck,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +53,7 @@ import {
   type Author,
 } from "@/lib/community";
 import { cn } from "@/lib/utils";
+import { DirectoryList } from "@/components/community/DirectoryList";
 
 /**
  * The community space.
@@ -141,8 +147,20 @@ const CommunityPage = () => {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [communities, setCommunities] = useState<Community[]>([]);
+  const [params, setParams] = useSearchParams();
+
+  /*
+    The space and the community both live in the URL rather than in state.
+    The sidebar links to them, so holding them in component state would mean
+    two places deciding what is on screen, and the sidebar highlighting one
+    space while the page showed another.
+  */
+  const space = params.get("space");
+  const channel = (space === "questions" || space === "wins"
+    ? space
+    : "announcements") as Channel;
+
   const [spaceId, setSpaceId] = useState<string | null>(null);
-  const [channel, setChannel] = useState<Channel>("announcements");
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,7 +189,13 @@ const CommunityPage = () => {
             : all.filter((c) => mine.includes(c.id));
 
         setCommunities(visible);
-        setSpaceId(visible[0]?.id ?? null);
+
+        const fromUrl = params.get("community");
+        setSpaceId(
+          fromUrl && visible.some((c) => c.id === fromUrl)
+            ? fromUrl
+            : (visible[0]?.id ?? null),
+        );
         setLoading(false);
       },
     );
@@ -183,10 +207,10 @@ const CommunityPage = () => {
   }, [spaceId, channel]);
 
   useEffect(() => {
-    if (spaceId) load();
-  }, [spaceId, channel, load]);
+    if (spaceId && space && space !== "directory") load();
+  }, [spaceId, channel, space, load]);
 
-  const space = communities.find((c) => c.id === spaceId) ?? null;
+  const community = communities.find((c) => c.id === spaceId) ?? null;
   const canPost = channel !== "announcements" || isTeam;
   const canPin = channel === "announcements" ? isTeam : isAdmin;
 
@@ -248,7 +272,7 @@ const CommunityPage = () => {
     );
   }
 
-  if (!space) {
+  if (!community) {
     return (
       <DashboardLayout>
         <div className="mx-auto max-w-md space-y-3 py-16 text-center">
@@ -262,43 +286,127 @@ const CommunityPage = () => {
     );
   }
 
+  const header = (
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 className="flex flex-wrap items-center gap-3 text-3xl font-bold tracking-tight">
+          Community
+          <Badge variant="outline" className="text-xs uppercase tracking-wide">
+            {community.name}
+          </Badge>
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          {space ? channelInfo?.blurb : "Stay updated, and join the conversation."}
+        </p>
+      </div>
+    </div>
+  );
+
+  /* No space chosen: the overview. Somebody arriving from the sidebar header
+     should be told what the three channels are for before being dropped into
+     one of them. */
+  if (!space) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          {header}
+
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="space-y-4 p-6">
+              <h2 className="text-2xl font-bold text-primary">
+                Welcome to your {community.name} community
+              </h2>
+              <p className="text-muted-foreground">
+                A space to connect with the people on the same road as you.
+              </p>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {[
+                  {
+                    icon: Megaphone,
+                    space: "announcements",
+                    title: "Announcements",
+                    blurb:
+                      "News, events and updates from the PSLA team.",
+                  },
+                  {
+                    icon: HelpCircle,
+                    space: "questions",
+                    title: "Ask a Question",
+                    blurb:
+                      "Stuck on something? Ask the group. Somebody has usually been there.",
+                  },
+                  {
+                    icon: Trophy,
+                    space: "wins",
+                    title: "Share a Win",
+                    blurb:
+                      "Something went well. Say so, with people who understand why it mattered.",
+                  },
+                ].map((c) => (
+                  <Link
+                    key={c.space}
+                    to={`/community?space=${c.space}&community=${spaceId}`}
+                    className="rounded-lg border bg-card p-5 transition-colors hover:border-primary/40"
+                  >
+                    <c.icon className="mb-3 h-6 w-6 text-primary" aria-hidden="true" />
+                    <p className="font-semibold">{c.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{c.blurb}</p>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-3 p-6">
+              <h2 className="flex items-center gap-2 text-xl font-bold">
+                <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
+                Community guidelines
+              </h2>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">Be respectful.</strong>{" "}
+                  Treat everyone with kindness. Harassment and discrimination
+                  are not tolerated.
+                </li>
+                <li>
+                  <strong className="text-foreground">Keep it in the room.</strong>{" "}
+                  What is shared here stays here. Respect the privacy of your
+                  peers.
+                </li>
+                <li>
+                  <strong className="text-foreground">No self-promotion.</strong>{" "}
+                  This is not a place to sell to each other.
+                </li>
+                <li>
+                  <strong className="text-foreground">Be useful.</strong>{" "}
+                  When you answer, answer to help rather than to be right.
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  /* The directory, inside Community rather than beside it, as in EI Academy. */
+  if (space === "directory") {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          {header}
+          <DirectoryList />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{space.name}</h1>
-            <p className="mt-1 text-muted-foreground">{channelInfo?.blurb}</p>
-          </div>
-
-          {/* Only when there is a choice to make. */}
-          {communities.length > 1 && (
-            <div className="min-w-[240px]">
-              <Select value={spaceId ?? ""} onValueChange={setSpaceId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {communities.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-
-        <Tabs value={channel} onValueChange={(v) => setChannel(v as Channel)}>
-          <TabsList>
-            {CHANNELS.map((c) => (
-              <TabsTrigger key={c.value} value={c.value}>
-                {c.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        {header}
 
         {canPost ? (
           <Card>

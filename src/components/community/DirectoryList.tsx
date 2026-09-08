@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, MapPin, Search, Users } from "lucide-react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,14 @@ import { COUNTRIES } from "@/data/geo";
 import { allCommunities, type Community } from "@/lib/communities";
 
 /**
+ * The members' directory, as a component.
+ *
+ * It renders inside the Community page rather than as a page of its own,
+ * matching EI Academy, where Members Directory is one of the community
+ * spaces rather than a separate section.
+ *
+ * Original notes follow.
+ *
  * The members' directory.
  *
  * Only paid communities produce one. Everyone signed in is in the free PSLA
@@ -36,7 +43,7 @@ interface DirectoryMember {
   avatar_url: string | null;
 }
 
-const Directory = () => {
+export const DirectoryList = () => {
   const [members, setMembers] = useState<DirectoryMember[]>([]);
   const [hasPaid, setHasPaid] = useState(false);
   const [paidNames, setPaidNames] = useState<string[]>([]);
@@ -96,16 +103,8 @@ const Directory = () => {
   }, [members, query]);
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Members</h1>
-            <p className="mt-1 text-muted-foreground">
-              Other members of the communities you belong to.
-            </p>
-          </div>
-
+    <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-end gap-4">
           {members.length > 0 && (
             <div className="relative min-w-[240px]">
               <Search
@@ -213,9 +212,8 @@ const Directory = () => {
           </Button>
           .
         </p>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 };
 
-export default Directory;
+export default DirectoryList;

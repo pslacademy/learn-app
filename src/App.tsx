@@ -13,7 +13,6 @@ import Admin from "./pages/Admin";
 import Events from "./pages/Events";
 import Replays from "./pages/Replays";
 import Resources from "./pages/Resources";
-import Directory from "./pages/Directory";
 import CommunityPage from "./pages/Community";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -96,13 +95,10 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          {/* The directory moved inside Community. Old links still work. */}
           <Route
             path="/members"
-            element={
-              <ProtectedRoute>
-                <Directory />
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/community?space=directory" replace />}
           />
           <Route
             path="/admin"

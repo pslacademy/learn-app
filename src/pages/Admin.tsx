@@ -43,6 +43,7 @@ import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { EventsAdmin } from "@/components/admin/EventsAdmin";
 import { MembersAdmin } from "@/components/admin/MembersAdmin";
 import { ResourcesAdmin } from "@/components/admin/ResourcesAdmin";
+import { CommunityAdmin } from "@/components/admin/CommunityAdmin";
 
 /**
  * Academy administration.
@@ -357,7 +358,7 @@ const Admin = () => {
               <Users className="mr-2 h-4 w-4" aria-hidden="true" />
               Member directory
             </TabsTrigger>
-            <TabsTrigger value="community" disabled>
+            <TabsTrigger value="community">
               <MessageSquare className="mr-2 h-4 w-4" aria-hidden="true" />
               Community
             </TabsTrigger>
@@ -372,6 +373,10 @@ const Admin = () => {
               <MembersAdmin communities={communities} />
             </TabsContent>
           )}
+
+          <TabsContent value="community" className="mt-6">
+            <CommunityAdmin communities={communities} />
+          </TabsContent>
 
           <TabsContent value="resources" className="mt-6">
             <ResourcesAdmin />
