@@ -749,32 +749,57 @@ const Admin = () => {
                           <div>
                             <p className="font-medium">Who can take this course</p>
                             <p className="text-sm text-muted-foreground">
-                              A course attached to no community is reachable by
+                              A course reaching no community is reachable by
                               nobody, which is how an unfinished course stays
                               hidden.
                             </p>
                           </div>
+
+                          {/* Everyone, first and separate. Membership is
+                              exclusive, so a member who buys leaves the free
+                              community. Shared content has to say "everyone"
+                              rather than tick each community and then be
+                              forgotten when the next one is added. */}
+                          <div className="flex items-center justify-between gap-4 rounded-md bg-muted/60 p-3">
+                            <Label htmlFor="course-everyone">
+                              Everyone
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                every member, whatever they hold
+                              </span>
+                            </Label>
+                            <Switch
+                              id="course-everyone"
+                              checked={Boolean(courseValue("visible_to_all"))}
+                              disabled={saving}
+                              onCheckedChange={(v) =>
+                                editCourse({ visible_to_all: v })
+                              }
+                            />
+                          </div>
+
                           {communities.map((c) => (
                             <div
                               key={c.id}
                               className="flex items-center justify-between gap-4"
                             >
-                              <Label htmlFor={`comm-${c.id}`}>
-                                {c.name}
-                                {c.is_free && (
-                                  <span className="ml-2 text-xs text-muted-foreground">
-                                    free, everyone
-                                  </span>
-                                )}
-                              </Label>
+                              <Label htmlFor={`comm-${c.id}`}>{c.name}</Label>
                               <Switch
                                 id={`comm-${c.id}`}
                                 checked={course.community_ids.includes(c.id)}
-                                disabled={saving}
+                                disabled={
+                                  saving || Boolean(courseValue("visible_to_all"))
+                                }
                                 onCheckedChange={(v) => toggleCommunity(c.id, v)}
                               />
                             </div>
                           ))}
+
+                          {Boolean(courseValue("visible_to_all")) && (
+                            <p className="text-xs text-muted-foreground">
+                              Everyone is on, so the individual communities make
+                              no difference and are disabled.
+                            </p>
+                          )}
                         </div>
                       )}
 

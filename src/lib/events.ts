@@ -43,7 +43,9 @@ export interface AcademyEvent extends RecurringLike {
   recordingUrl: string | null;
   resources: Resource[];
   isPublished: boolean;
-  /** Empty means every signed-in member. */
+  /** Reaches every member whatever they hold. */
+  visibleToAll: boolean;
+  /** Empty, and not visibleToAll, means nobody. */
   communityIds: string[];
 }
 
@@ -68,6 +70,7 @@ const fromRow = (r: Row, communityIds: string[]): AcademyEvent => ({
   recordingUrl: (r.recording_url as string) ?? null,
   resources: Array.isArray(r.resources) ? (r.resources as Resource[]) : [],
   isPublished: Boolean(r.is_published),
+  visibleToAll: Boolean(r.visible_to_all),
   communityIds,
 });
 

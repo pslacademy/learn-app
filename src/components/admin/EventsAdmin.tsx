@@ -137,6 +137,7 @@ export const EventsAdmin = ({ isAdmin, communities }: Props) => {
               })
             : null,
           recurrence: value("isRecurring") ? rule : null,
+          visible_to_all: value("visibleToAll"),
           recording_url: value("recordingUrl"),
           resources,
           is_published: value("isPublished"),
@@ -710,28 +711,48 @@ export const EventsAdmin = ({ isAdmin, communities }: Props) => {
                   <div>
                     <p className="font-medium">Who can see this session</p>
                     <p className="text-sm text-muted-foreground">
-                      Attach none and every signed-in member sees it. Attach one
-                      or more and only those members do.
+                      A session reaching no community is seen by nobody, which
+                      is how a session still being written stays hidden.
                     </p>
                   </div>
+
+                  {/* Everyone, first and separate. Membership is exclusive, so
+                      a member who buys leaves the free community; shared
+                      sessions have to say "everyone" rather than tick each
+                      community and be forgotten when the next arrives. */}
+                  <div className="flex items-center justify-between gap-4 rounded-md bg-muted/60 p-3">
+                    <Label htmlFor="event-everyone">
+                      Everyone
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        every member, whatever they hold
+                      </span>
+                    </Label>
+                    <Switch
+                      id="event-everyone"
+                      checked={Boolean(value("visibleToAll"))}
+                      disabled={saving}
+                      onCheckedChange={(v) => edit({ visibleToAll: v })}
+                    />
+                  </div>
+
                   {communities.map((c) => (
                     <div key={c.id} className="flex items-center justify-between gap-4">
-                      <Label htmlFor={`ev-${c.id}`}>
-                        {c.name}
-                        {c.is_free && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            free, everyone
-                          </span>
-                        )}
-                      </Label>
+                      <Label htmlFor={`ev-${c.id}`}>{c.name}</Label>
                       <Switch
                         id={`ev-${c.id}`}
                         checked={event.communityIds.includes(c.id)}
-                        disabled={saving}
+                        disabled={saving || Boolean(value("visibleToAll"))}
                         onCheckedChange={(v) => toggleCommunity(c.id, v)}
                       />
                     </div>
                   ))}
+
+                  {Boolean(value("visibleToAll")) && (
+                    <p className="text-xs text-muted-foreground">
+                      Everyone is on, so the individual communities make no
+                      difference and are disabled.
+                    </p>
+                  )}
                 </div>
               )}
 

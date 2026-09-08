@@ -58,7 +58,9 @@ export interface Course {
   lesson_count: number;
   sort_order: number;
   is_active: boolean;
-  /** The communities that reach this course. Empty means nobody. */
+  /** Reaches every member whatever they hold. */
+  visible_to_all: boolean;
+  /** The communities that reach this course. Empty, and not visible_to_all, means nobody. */
   community_ids: string[];
   /** Whether this member may open it. Decided by the database, not here. */
   unlocked: boolean;
@@ -79,7 +81,7 @@ export const listCourses = async (): Promise<Course[]> => {
     await Promise.all([
       supabase
         .from("courses")
-        .select("id, slug, title, description, code, image_url, instructor, badge, total_duration, lesson_count, sort_order, is_active")
+        .select("id, slug, title, description, code, image_url, instructor, badge, total_duration, lesson_count, sort_order, is_active, visible_to_all")
         .eq("is_active", true)
         .order("sort_order"),
       supabase.from("course_communities").select("course_id, community_id"),

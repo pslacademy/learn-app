@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { COUNTRIES } from "@/data/geo";
+import { allCommunities, type Community } from "@/lib/communities";
 
 /**
  * The members' directory.
@@ -38,20 +39,31 @@ interface DirectoryMember {
 const Directory = () => {
   const [members, setMembers] = useState<DirectoryMember[]>([]);
   const [hasPaid, setHasPaid] = useState(false);
+  const [paidNames, setPaidNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: paid }, { data, error }] = await Promise.all([
+      const [{ data: paid }, { data, error }, comms] = await Promise.all([
         supabase.rpc("my_paid_community_ids"),
         supabase
           .from("profiles")
           .select("id, first_name, last_name, title, location, bio, avatar_url")
           .order("first_name"),
+        allCommunities(),
       ]);
 
       setHasPaid((paid ?? []).length > 0);
+
+      /* Named from the database rather than written into this file. The two
+         paid communities were spelled out here and were already wrong once;
+         two more are coming, and a hardcoded list would be wrong again. */
+      setPaidNames(
+        (comms as Community[])
+          .filter((c) => !c.is_free && c.slug !== "team")
+          .map((c) => c.name),
+      );
 
       if (error) {
         console.error("Could not read the directory:", error.message);
@@ -128,11 +140,11 @@ const Directory = () => {
                 </>
               ) : (
                 <>
-                  <p className="font-medium">The directory comes with membership</p>
+                  <p className="font-medium">Nobody else here yet</p>
                   <p className="max-w-md text-sm text-muted-foreground">
-                    Members of Professional Services Leadership and the Young
-                    Professionals Academy can see and be seen by one another.
-                    Join one of those and you will appear here.
+                    {paidNames.length > 0
+                      ? `You will find more members inside ${paidNames.join(" and ")}.`
+                      : "Other members will appear here as they join."}
                   </p>
                 </>
               )}
