@@ -82,6 +82,30 @@ export const BRAND = {
       "https://academy.professionalservicesleadership.com/js/form_embed.js",
   },
 
+  /**
+   * The certificate.
+   *
+   * The signature is a PNG with a transparent background, uploaded to GHL
+   * Media Storage. Held here rather than in the drawing code so it can be
+   * replaced without touching the layout.
+   *
+   * An empty signature is not an error: the certificate draws the ruled line
+   * and the name without it, which is a certificate missing a signature
+   * rather than a broken page.
+   */
+  certificate: {
+    signatureUrl:
+      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa0dc0edd867dc12de8a2e8.png",
+    signatoryName: "Grant Herbert",
+    signatoryTitle: "Professional Services Leadership Mentor",
+    /**
+     * The monogram pressed into the wax. Three or four letters at most: it is
+     * set inside a seal about 20mm across, and more than that becomes a smudge
+     * rather than a mark.
+     */
+    sealMonogram: "PSLA",
+  },
+
   support: {
     email: "info@professionalservicesleadership.com",
   },

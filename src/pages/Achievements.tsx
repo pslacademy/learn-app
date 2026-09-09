@@ -243,7 +243,9 @@ const Achievements = () => {
                       <Button
                         variant="outline"
                         className="w-full"
-                        onClick={() => downloadCertificate(cert)}
+                        onClick={() => {
+                          void downloadCertificate(cert);
+                        }}
                       >
                         <Download className="mr-2 h-4 w-4" aria-hidden="true" />
                         Download certificate
