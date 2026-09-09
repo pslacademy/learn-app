@@ -99,11 +99,25 @@ export const BRAND = {
     signatoryName: "Grant Herbert",
     signatoryTitle: "Professional Services Leadership Mentor",
     /**
-     * The monogram pressed into the wax. Three or four letters at most: it is
-     * set inside a seal about 20mm across, and more than that becomes a smudge
-     * rather than a mark.
+     * The seal, as an image.
+     *
+     * A drawn one was tried first and looked drawn. This is a real seal.
+     *
+     * PNG with a transparent background: jsPDF places PNG and JPEG only, so
+     * the SVG logo cannot be used here and a PNG version is needed alongside
+     * it.
      */
-    sealMonogram: "PSLA",
+    sealUrl:
+      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa0e125dd867dc12de9029c.png",
+
+    /**
+     * The full logo, as a PNG for the same reason.
+     *
+     * Empty until one exists, in which case the certificate sets the academy
+     * name in type instead. A certificate with the name typeset is fine; one
+     * that fails to generate is not.
+     */
+    logoUrl: "",
   },
 
   support: {

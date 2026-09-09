@@ -137,75 +137,6 @@ const spacedCaps = (
 };
 
 /**
- * A wax seal.
- *
- * An emblem rather than a certification mark: this says who issued the
- * document, not that a standards body approved it. Grant was specific about
- * that, and it is the right distinction.
- *
- * Drawn rather than placed as an image, so it stays sharp at any size and
- * there is no asset to upload and keep in step. The edge wobbles a little,
- * because a perfect circle reads as a badge and wax never sets evenly.
- */
-const drawSeal = (doc: jsPDF, cx: number, cy: number, r: number) => {
-  const WAX: [number, number, number] = [201, 96, 20];
-  const WAX_DARK: [number, number, number] = [166, 74, 12];
-  const HIGHLIGHT: [number, number, number] = [232, 140, 66];
-
-  /*
-    The blob. Built as a polygon whose radius varies slightly, then handed to
-    jsPDF as relative segments, which is the only path drawing it offers.
-  */
-  const steps = 64;
-  const points: [number, number][] = [];
-  for (let i = 0; i < steps; i++) {
-    const a = (i / steps) * Math.PI * 2;
-    // Two slow waves rather than random noise: random edges look like a
-    // rendering fault, waves look poured.
-    const wobble = 1 + 0.045 * Math.sin(a * 5) + 0.03 * Math.cos(a * 3 + 1.2);
-    points.push([cx + Math.cos(a) * r * wobble, cy + Math.sin(a) * r * wobble]);
-  }
-
-  const deltas: number[][] = [];
-  for (let i = 1; i < points.length; i++) {
-    deltas.push([points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]]);
-  }
-  deltas.push([points[0][0] - points[points.length - 1][0],
-               points[0][1] - points[points.length - 1][1]]);
-
-  doc.setFillColor(...WAX);
-  doc.lines(deltas, points[0][0], points[0][1], [1, 1], "F", true);
-
-  // A lighter arc across the top left, which is what makes wax look domed
-  // rather than flat.
-  doc.setDrawColor(...HIGHLIGHT);
-  doc.setLineWidth(1.2);
-  for (let i = 0; i < 18; i++) {
-    const a = Math.PI * 1.05 + (i / 18) * Math.PI * 0.5;
-    const x = cx + Math.cos(a) * (r - 3);
-    const y = cy + Math.sin(a) * (r - 3);
-    doc.line(x, y, x + 0.4, y + 0.4);
-  }
-
-  // The pressed rim, and the ring the monogram sits inside.
-  doc.setDrawColor(...WAX_DARK);
-  doc.setLineWidth(0.8);
-  doc.circle(cx, cy, r - 3.4);
-  doc.setLineWidth(0.4);
-  doc.circle(cx, cy, r - 5);
-
-  // The monogram, in the darker wax so it reads as pressed in rather than
-  // printed on.
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...WAX_DARK);
-  doc.text(BRAND.certificate.sealMonogram, cx, cy + 0.4, {
-    align: "center",
-    baseline: "middle",
-  });
-};
-
-/**
  * Draw the certificate.
  *
  * Laid out like EI Academy's: an accent bar down the left edge, the logo top
@@ -234,23 +165,33 @@ export const downloadCertificate = async (cert: Certificate) => {
   doc.setFillColor(...NAVY);
   doc.rect(6, 0, 1.6, H, "F");
 
-  // Logo, top left. Drawn only if it loads; otherwise the name is set instead,
-  // so a certificate is still a certificate when the CDN is unreachable.
-  const logo = await asDataUrl(BRAND.marks.favicon);
+  /*
+    The logo.
+
+    A PNG of the full logo if there is one, and the name typeset if not. The
+    SVG logo cannot be used: jsPDF places PNG and JPEG only.
+  */
+  const logo = await asDataUrl(BRAND.certificate.logoUrl);
   if (logo) {
     try {
-      doc.addImage(logo, "PNG", left, 20, 18, 18);
+      /* Placed to a fixed height with the width left to the natural ratio, so
+         a logo of any proportion sits correctly rather than being squashed
+         into a box that was guessed at. */
+      const props = doc.getImageProperties(logo);
+      const h = 16;
+      const w = (props.width / props.height) * h;
+      doc.addImage(logo, "PNG", left, 20, w, h);
     } catch (_) {
       /* an unusable image is not worth failing the page for */
     }
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...NAVY);
+    doc.text("PROFESSIONAL SERVICES", left, 28);
+    doc.setTextColor(...ORANGE);
+    doc.text("LEADERSHIP ACADEMY", left, 34);
   }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...NAVY);
-  doc.text("PROFESSIONAL SERVICES", left + (logo ? 23 : 0), 28);
-  doc.setTextColor(...ORANGE);
-  doc.text("LEADERSHIP ACADEMY", left + (logo ? 23 : 0), 34);
 
   // Credential id, top right.
   doc.setFont("helvetica", "bold");
@@ -290,31 +231,44 @@ export const downloadCertificate = async (cert: Certificate) => {
   doc.setFontSize(22);
   doc.setTextColor(...ORANGE);
   const title = doc.splitTextToSize(cert.course_title, W - left - 90) as string[];
-  doc.text(title, left, 130);
+  doc.text(title, left, 128);
 
-  // Signature, if there is one.
+  /*
+    The signature block.
+
+    The rule is the fixed point and everything is measured from it, so the
+    signature rests on the line rather than floating above it. Sized by its
+    own ratio for the same reason as the logo: a signature squashed into a
+    guessed box looks forged.
+  */
+  const RULE_Y = H - 48;
+
   const sig = await asDataUrl(BRAND.certificate.signatureUrl);
   if (sig) {
     try {
-      doc.addImage(sig, "PNG", left, H - 78, 48, 20);
+      const props = doc.getImageProperties(sig);
+      const h = 18;
+      const w = (props.width / props.height) * h;
+      // Sat on the line, with a hair of overlap so the pen appears to touch it.
+      doc.addImage(sig, "PNG", left, RULE_Y - h + 1.5, Math.min(w, 80), h);
     } catch (_) {
-      /* fall through to the ruled line */
+      /* the rule and the name below still make sense on their own */
     }
   }
 
   doc.setDrawColor(190, 196, 202);
   doc.setLineWidth(0.4);
-  doc.line(left, H - 56, left + 70, H - 56);
+  doc.line(left, RULE_Y, left + 78, RULE_Y);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(30, 35, 40);
-  doc.text(BRAND.certificate.signatoryName, left, H - 48);
+  doc.text(BRAND.certificate.signatoryName, left, RULE_Y + 7);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...GREY);
-  doc.text(BRAND.certificate.signatoryTitle, left, H - 42);
+  doc.text(BRAND.certificate.signatoryTitle, left, RULE_Y + 13);
 
   doc.text(
     new Date(cert.issued_at).toLocaleDateString("en-AU", {
@@ -323,10 +277,22 @@ export const downloadCertificate = async (cert: Certificate) => {
       year: "numeric",
     }),
     left,
-    H - 33,
+    RULE_Y + 22,
   );
 
-  drawSeal(doc, W - 62, H - 56, 21);
+  /* The seal, level with the signature block rather than floating on its own,
+     which is where a seal is pressed on a real document. */
+  const seal = await asDataUrl(BRAND.certificate.sealUrl);
+  if (seal) {
+    try {
+      const props = doc.getImageProperties(seal);
+      const h = 42;
+      const w = (props.width / props.height) * h;
+      doc.addImage(seal, "PNG", W - 52 - w / 2, RULE_Y - h + 12, w, h);
+    } catch (_) {
+      /* a certificate without a seal still reads correctly */
+    }
+  }
 
   const safe = cert.course_title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
   doc.save(`psla-certificate-${safe}-${cert.code}.pdf`);
