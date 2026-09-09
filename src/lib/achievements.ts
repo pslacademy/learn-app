@@ -178,9 +178,13 @@ export const downloadCertificate = async (cert: Certificate) => {
          a logo of any proportion sits correctly rather than being squashed
          into a box that was guessed at. */
       const props = doc.getImageProperties(logo);
-      const h = 16;
-      const w = (props.width / props.height) * h;
-      doc.addImage(logo, "PNG", left, 20, w, h);
+      /* Constrained on both axes: a wide logo would otherwise run under the
+         credential id, and a tall one would push into the heading. */
+      const maxH = 20;
+      const maxW = 90;
+      const ratio = props.width / props.height;
+      const h = Math.min(maxH, maxW / ratio);
+      doc.addImage(logo, "PNG", left, 22, h * ratio, h);
     } catch (_) {
       /* an unusable image is not worth failing the page for */
     }

@@ -108,7 +108,7 @@ export const BRAND = {
      * it.
      */
     sealUrl:
-      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa0e125dd867dc12de9029c.png",
+      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa0e25dd63e08439cd82b65.png",
 
     /**
      * The full logo, as a PNG for the same reason.
@@ -117,7 +117,8 @@ export const BRAND = {
      * name in type instead. A certificate with the name typeset is fine; one
      * that fails to generate is not.
      */
-    logoUrl: "",
+    logoUrl:
+      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/69f44fd8e9694b9664d25c6c.png",
   },
 
   support: {
