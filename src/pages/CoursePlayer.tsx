@@ -378,10 +378,20 @@ const CoursePlayer = () => {
                   return;
                 }
 
+                /*
+                  Submitting is finishing it.
+                  
+                  Marking the lesson complete separately was a step nobody
+                  should have to take: they have done the work, and leaving
+                  the tick to them meant a module that was finished still
+                  read as unfinished, and a certificate that never arrived.
+                */
+                await markLessonComplete(course.id, current.id);
                 setSubmissions(await mySubmissions());
+
                 toast({
                   title: "Submitted",
-                  description: "The next module is now open.",
+                  description: "Lesson marked complete. The next module is now open.",
                 });
               }}
             />
