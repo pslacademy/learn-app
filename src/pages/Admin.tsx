@@ -96,11 +96,38 @@ const Admin = () => {
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
 
-  const reload = async (keepSelection = true) => {
+  /**
+   * Re-read everything from the database.
+   *
+   * keepDraft matters more than it looks. Adding a module or a lesson reloads,
+   * and a reload used to throw away unsaved edits: somebody who renamed three
+   * lessons and then added a fourth lost the three. Now the draft survives,
+   * pruned to rows that still exist so a deletion cannot leave an edit
+   * pointing at nothing.
+   */
+  const reload = async (keepSelection = true, keepDraft = false) => {
     const [list, comms] = await Promise.all([listCourses(), allCommunities()]);
     setCourses(list);
     setCommunities(comms);
-    setDraft(emptyDraft);
+
+    if (!keepDraft) {
+      setDraft(emptyDraft);
+    } else {
+      const courseIds = new Set(list.map((c) => c.id));
+      const moduleIds = new Set(list.flatMap((c) => c.modules.map((m) => m.id)));
+      const lessonIds = new Set(
+        list.flatMap((c) => c.modules.flatMap((m) => m.lessons.map((l) => l.id))),
+      );
+
+      const keep = <T,>(d: Record<string, T>, ids: Set<string>) =>
+        Object.fromEntries(Object.entries(d).filter(([id]) => ids.has(id)));
+
+      setDraft((d) => ({
+        courses: keep(d.courses, courseIds),
+        modules: keep(d.modules, moduleIds),
+        lessons: keep(d.lessons, lessonIds),
+      }));
+    }
 
     if (!keepSelection || !list.some((c) => c.id === courseId)) {
       const first = list[0] ?? null;
@@ -237,35 +264,96 @@ const Admin = () => {
     }
   };
 
+  /*
+    Adding something selects it.
+
+    Creating a lesson used to add "Untitled lesson" to the list and leave the
+    editor on whatever was open, so every addition needed a second click to
+    edit the thing just made. The id is asked for on insert and the selection
+    moved to it once the reload has finished.
+  */
+  const addAndSelect = async (
+    what: string,
+    insert: () => Promise<{ data: { id: string } | null; error: unknown }>,
+    select: (id: string) => void,
+  ) => {
+    setSaving(true);
+    try {
+      const { data, error } = await insert();
+      if (error) throw new Error((error as { message: string }).message);
+      await reload(true, true);
+      if (data?.id) select(data.id);
+      toast({ title: what });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: `Could not ${what.toLowerCase()}`,
+        description: e instanceof Error ? e.message : "Please try again.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const addCourse = () =>
-    structural("Course created", async () =>
-      supabase.from("courses").insert({
-        slug: `new-course-${Date.now()}`,
-        title: "Untitled course",
-        sort_order: courses.length + 1,
-      }),
+    addAndSelect(
+      "Course created",
+      async () =>
+        supabase
+          .from("courses")
+          .insert({
+            slug: `new-course-${Date.now()}`,
+            title: "Untitled course",
+            sort_order: courses.length + 1,
+          })
+          .select("id")
+          .single(),
+      (id) => {
+        setCourseId(id);
+        setModuleId(null);
+        setLessonId(null);
+      },
     );
 
   const addModule = () =>
     course
-      ? structural("Module added", async () =>
-          supabase.from("course_modules").insert({
-            course_id: course.id,
-            title: `Module ${course.modules.length + 1}`,
-            sort_order: course.modules.length + 1,
-          }),
+      ? addAndSelect(
+          "Module added",
+          async () =>
+            supabase
+              .from("course_modules")
+              .insert({
+                course_id: course.id,
+                title: `Module ${course.modules.length + 1}`,
+                sort_order: course.modules.length + 1,
+              })
+              .select("id")
+              .single(),
+          (id) => {
+            setModuleId(id);
+            /* A new module has no lessons, so nothing is left selected from
+               the module before it. */
+            setLessonId(null);
+          },
         )
       : undefined;
 
   const addLesson = () =>
     course && module
-      ? structural("Lesson added", async () =>
-          supabase.from("course_lessons").insert({
-            course_id: course.id,
-            module_id: module.id,
-            title: "Untitled lesson",
-            sort_order: module.lessons.length + 1,
-          }),
+      ? addAndSelect(
+          "Lesson added",
+          async () =>
+            supabase
+              .from("course_lessons")
+              .insert({
+                course_id: course.id,
+                module_id: module.id,
+                title: "Untitled lesson",
+                sort_order: module.lessons.length + 1,
+              })
+              .select("id")
+              .single(),
+          (id) => setLessonId(id),
         )
       : undefined;
 
