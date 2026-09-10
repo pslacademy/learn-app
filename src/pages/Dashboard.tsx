@@ -57,13 +57,21 @@ const Dashboard = () => {
     ).length;
   const coursesDone = mine.filter((c) => courseProgress(c) === 100).length;
 
-  /* What to pick up. The first course that is started but unfinished, else
-     the first unstarted one. Nothing to resume is a real state, not zero. */
-  const resume =
-    mine.find((c) => {
-      const pct = courseProgress(c);
-      return pct > 0 && pct < 100;
-    }) ?? mine.find((c) => courseProgress(c) === 0);
+  /*
+    What to show.
+
+    The first course started but unfinished, then the first unstarted one, and
+    failing both, whatever they have. Falling back matters: without it the
+    dashboard emptied out the moment somebody finished everything, so the page
+    went blank exactly for the member who had done the most.
+  */
+  const inProgress = mine.find((c) => {
+    const pct = courseProgress(c);
+    return pct > 0 && pct < 100;
+  });
+  const unstarted = mine.find((c) => courseProgress(c) === 0);
+  const resume = inProgress ?? unstarted ?? mine[0];
+  const finished = Boolean(resume) && courseProgress(resume) === 100;
 
   const upNext = resume ? nextLesson(resume) : null;
   const upNextModule = resume?.modules.find((m) =>
@@ -96,7 +104,7 @@ const Dashboard = () => {
             <Button asChild>
               <Link to={`/courses/${resume.slug}`}>
                 <PlayCircle className="mr-2 h-4 w-4" aria-hidden="true" />
-                Resume learning
+                {finished ? "Review your course" : "Resume learning"}
               </Link>
             </Button>
           )}
@@ -137,7 +145,9 @@ const Dashboard = () => {
           <div className="grid gap-6 lg:grid-cols-3">
             {resume && (
               <div className="space-y-3">
-                <h2 className="text-lg font-semibold">Continue learning</h2>
+                <h2 className="text-lg font-semibold">
+                  {finished ? "Your course" : "Continue learning"}
+                </h2>
                 <Card className="overflow-hidden">
                   {resume.image_url && (
                     <img
@@ -172,7 +182,25 @@ const Dashboard = () => {
               </div>
             )}
 
-            {upNext && (
+            {finished ? (
+              <div className="space-y-3">
+                <h2 className="text-lg font-semibold">Up next</h2>
+                <Card>
+                  <CardContent className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+                    <Trophy className="h-8 w-8 text-primary" aria-hidden="true" />
+                    <p className="font-medium">You have finished everything</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your certificate is under Achievements. New courses will
+                      appear here as they are published.
+                    </p>
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/achievements">See your achievements</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              upNext && (
               <div className="space-y-3">
                 <h2 className="text-lg font-semibold">Up next</h2>
                 <Card className="overflow-hidden">
@@ -205,6 +233,7 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+              )
             )}
 
             {resume && (

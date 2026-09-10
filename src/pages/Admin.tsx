@@ -69,6 +69,10 @@ import { AssessmentsAdmin } from "@/components/admin/AssessmentsAdmin";
  * is a map.
  */
 
+/* One place, so the six tabs cannot drift apart. */
+const ACTIVE_TAB =
+  "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground";
+
 type Draft = {
   courses: Record<string, Partial<Course>>;
   modules: Record<string, { title?: string; sort_order?: number }>;
@@ -357,31 +361,52 @@ const Admin = () => {
         )}
 
         <Tabs defaultValue="content">
+          {/* The active tab in brand orange rather than plain white on grey,
+              which was hard to pick out on a row of six. */}
           <TabsList className="flex-wrap">
-            <TabsTrigger value="content">
+            <TabsTrigger
+              value="content"
+              className={ACTIVE_TAB}
+            >
               <LayoutList className="mr-2 h-4 w-4" aria-hidden="true" />
               Course content
             </TabsTrigger>
             {/* Present but disabled. Each becomes live with the phase that
                 builds the page behind it. A tab that navigates nowhere is a
                 dead control; one that says "later" is a map. */}
-            <TabsTrigger value="resources">
+            <TabsTrigger
+              value="resources"
+              className={ACTIVE_TAB}
+            >
               <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
               Resources
             </TabsTrigger>
-            <TabsTrigger value="events">
+            <TabsTrigger
+              value="events"
+              className={ACTIVE_TAB}
+            >
               <Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
               Events
             </TabsTrigger>
-            <TabsTrigger value="directory" disabled={!isAdmin}>
+            <TabsTrigger
+              value="directory"
+              disabled={!isAdmin}
+              className={ACTIVE_TAB}
+            >
               <Users className="mr-2 h-4 w-4" aria-hidden="true" />
               Member directory
             </TabsTrigger>
-            <TabsTrigger value="community">
+            <TabsTrigger
+              value="community"
+              className={ACTIVE_TAB}
+            >
               <MessageSquare className="mr-2 h-4 w-4" aria-hidden="true" />
               Community
             </TabsTrigger>
-            <TabsTrigger value="assessments">
+            <TabsTrigger
+              value="assessments"
+              className={ACTIVE_TAB}
+            >
               <GraduationCap className="mr-2 h-4 w-4" aria-hidden="true" />
               Assessments
             </TabsTrigger>
@@ -676,161 +701,20 @@ const Admin = () => {
                       <div className="flex items-center gap-2">
                         <LayoutList className="h-5 w-5 text-primary" aria-hidden="true" />
                         <h2 className="text-lg font-semibold">
-                          Editing: {lesson ? (lessonValue("title") as string) : course.title}
+                          {lesson
+                            ? `Editing lesson: ${lessonValue("title") as string}`
+                            : `Editing course: ${courseValue("title") as string}`}
                         </h2>
                       </div>
 
-                      {/* Course settings */}
-                      <div className="space-y-4 rounded-lg border p-4">
-                        <p className="font-medium">
-                          Course settings — {courseValue("title") as string}
-                        </p>
+                      {/*
+                        The lesson first, the course settings after.
 
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>Course title</Label>
-                            <Input
-                              value={(courseValue("title") as string) ?? ""}
-                              onChange={(e) => editCourse({ title: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>URL slug</Label>
-                            <Input
-                              value={(courseValue("slug") as string) ?? ""}
-                              onChange={(e) => editCourse({ slug: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Badge</Label>
-                            <Input
-                              placeholder="Foundation, Advanced, Practitioner"
-                              value={(courseValue("badge") as string) ?? ""}
-                              onChange={(e) => editCourse({ badge: e.target.value })}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              A label on the card. It grants nothing.
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Instructor</Label>
-                            <Input
-                              placeholder="Grant Herbert"
-                              value={(courseValue("instructor") as string) ?? ""}
-                              onChange={(e) => editCourse({ instructor: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Total duration</Label>
-                            <Input
-                              placeholder="4h 30m total"
-                              value={(courseValue("total_duration") as string) ?? ""}
-                              onChange={(e) =>
-                                editCourse({ total_duration: e.target.value })
-                              }
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Certificate code</Label>
-                            <Input
-                              placeholder="PSL-FDN"
-                              value={(courseValue("code") as string) ?? ""}
-                              onChange={(e) => editCourse({ code: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-2 md:col-span-2">
-                            <Label>Description</Label>
-                            <Textarea
-                              rows={3}
-                              value={(courseValue("description") as string) ?? ""}
-                              onChange={(e) => editCourse({ description: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-2 md:col-span-2">
-                            <Label>Course card image URL</Label>
-                            <Input
-                              placeholder="https://..."
-                              value={(courseValue("image_url") as string) ?? ""}
-                              onChange={(e) => editCourse({ image_url: e.target.value })}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Shown on the My Courses and Dashboard cards.
-                              Upload to GoHighLevel Media Storage and paste the
-                              public URL here. Recommended size 1280×720
-                              pixels, 16:9. Anything else is scaled to fit and
-                              may be cropped.
-                            </p>
-                            {courseValue("image_url") && (
-                              <img
-                                src={courseValue("image_url") as string}
-                                alt=""
-                                className="mt-2 aspect-video max-w-sm rounded-md border object-cover"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Entitlement, admins only */}
-                      {isAdmin && (
-                        <div className="space-y-3 rounded-lg border p-4">
-                          <div>
-                            <p className="font-medium">Who can take this course</p>
-                            <p className="text-sm text-muted-foreground">
-                              A course reaching no community is reachable by
-                              nobody, which is how an unfinished course stays
-                              hidden.
-                            </p>
-                          </div>
-
-                          {/* Everyone, first and separate. Membership is
-                              exclusive, so a member who buys leaves the free
-                              community. Shared content has to say "everyone"
-                              rather than tick each community and then be
-                              forgotten when the next one is added. */}
-                          <div className="flex items-center justify-between gap-4 rounded-md bg-muted/60 p-3">
-                            <Label htmlFor="course-everyone">
-                              Everyone
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                every member, whatever they hold
-                              </span>
-                            </Label>
-                            <Switch
-                              id="course-everyone"
-                              checked={Boolean(courseValue("visible_to_all"))}
-                              disabled={saving}
-                              onCheckedChange={(v) =>
-                                editCourse({ visible_to_all: v })
-                              }
-                            />
-                          </div>
-
-                          {communities.map((c) => (
-                            <div
-                              key={c.id}
-                              className="flex items-center justify-between gap-4"
-                            >
-                              <Label htmlFor={`comm-${c.id}`}>{c.name}</Label>
-                              <Switch
-                                id={`comm-${c.id}`}
-                                checked={course.community_ids.includes(c.id)}
-                                disabled={
-                                  saving || Boolean(courseValue("visible_to_all"))
-                                }
-                                onCheckedChange={(v) => toggleCommunity(c.id, v)}
-                              />
-                            </div>
-                          ))}
-
-                          {Boolean(courseValue("visible_to_all")) && (
-                            <p className="text-xs text-muted-foreground">
-                              Everyone is on, so the individual communities make
-                              no difference and are disabled.
-                            </p>
-                          )}
-                        </div>
-                      )}
-
+                        Editing a lesson used to mean scrolling past the whole
+                        of the course settings to reach it, every time, and the
+                        settings are changed once while lessons are changed
+                        constantly. The thing done most often goes at the top.
+                      */}
                       {/* Lesson */}
                       {lesson && (
                         <div className="space-y-4">
@@ -1145,6 +1029,166 @@ const Admin = () => {
                           </div>
                         </div>
                       )}
+
+
+                      {/*
+                        Course settings in a container of its own, with who can
+                        take the course inside it. They are one subject: what
+                        this course is and who it is for. Splitting them put an
+                        entitlement decision adrift among the lesson fields.
+                      */}
+                      <div className="space-y-4 rounded-lg border bg-muted/20 p-5">
+                        <div>
+                          <p className="text-base font-semibold">Course settings</p>
+                          <p className="text-sm text-muted-foreground">
+                            {courseValue("title") as string}
+                          </p>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Course title</Label>
+                            <Input
+                              value={(courseValue("title") as string) ?? ""}
+                              onChange={(e) => editCourse({ title: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>URL slug</Label>
+                            <Input
+                              value={(courseValue("slug") as string) ?? ""}
+                              onChange={(e) => editCourse({ slug: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Badge</Label>
+                            <Input
+                              placeholder="Foundation, Advanced, Practitioner"
+                              value={(courseValue("badge") as string) ?? ""}
+                              onChange={(e) => editCourse({ badge: e.target.value })}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              A label on the card. It grants nothing.
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Instructor</Label>
+                            <Input
+                              placeholder="Grant Herbert"
+                              value={(courseValue("instructor") as string) ?? ""}
+                              onChange={(e) => editCourse({ instructor: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Total duration</Label>
+                            <Input
+                              placeholder="4h 30m total"
+                              value={(courseValue("total_duration") as string) ?? ""}
+                              onChange={(e) =>
+                                editCourse({ total_duration: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Certificate code</Label>
+                            <Input
+                              placeholder="PSL-FDN"
+                              value={(courseValue("code") as string) ?? ""}
+                              onChange={(e) => editCourse({ code: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
+                            <Label>Description</Label>
+                            <Textarea
+                              rows={3}
+                              value={(courseValue("description") as string) ?? ""}
+                              onChange={(e) => editCourse({ description: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
+                            <Label>Course card image URL</Label>
+                            <Input
+                              placeholder="https://..."
+                              value={(courseValue("image_url") as string) ?? ""}
+                              onChange={(e) => editCourse({ image_url: e.target.value })}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Shown on the My Courses and Dashboard cards.
+                              Upload to GoHighLevel Media Storage and paste the
+                              public URL here. Recommended size 1280×720
+                              pixels, 16:9. Anything else is scaled to fit and
+                              may be cropped.
+                            </p>
+                            {courseValue("image_url") && (
+                              <img
+                                src={courseValue("image_url") as string}
+                                alt=""
+                                className="mt-2 aspect-video max-w-sm rounded-md border object-cover"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Entitlement, admins only */}
+                        {isAdmin && (
+                          <div className="space-y-3 rounded-lg border p-4">
+                            <div>
+                              <p className="font-medium">Who can take this course</p>
+                              <p className="text-sm text-muted-foreground">
+                                A course reaching no community is reachable by
+                                nobody, which is how an unfinished course stays
+                                hidden.
+                              </p>
+                            </div>
+
+                            {/* Everyone, first and separate. Membership is
+                                exclusive, so a member who buys leaves the free
+                                community. Shared content has to say "everyone"
+                                rather than tick each community and then be
+                                forgotten when the next one is added. */}
+                            <div className="flex items-center justify-between gap-4 rounded-md bg-muted/60 p-3">
+                              <Label htmlFor="course-everyone">
+                                Everyone
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  every member, whatever they hold
+                                </span>
+                              </Label>
+                              <Switch
+                                id="course-everyone"
+                                checked={Boolean(courseValue("visible_to_all"))}
+                                disabled={saving}
+                                onCheckedChange={(v) =>
+                                  editCourse({ visible_to_all: v })
+                                }
+                              />
+                            </div>
+
+                            {communities.map((c) => (
+                              <div
+                                key={c.id}
+                                className="flex items-center justify-between gap-4"
+                              >
+                                <Label htmlFor={`comm-${c.id}`}>{c.name}</Label>
+                                <Switch
+                                  id={`comm-${c.id}`}
+                                  checked={course.community_ids.includes(c.id)}
+                                  disabled={
+                                    saving || Boolean(courseValue("visible_to_all"))
+                                  }
+                                  onCheckedChange={(v) => toggleCommunity(c.id, v)}
+                                />
+                              </div>
+                            ))}
+
+                            {Boolean(courseValue("visible_to_all")) && (
+                              <p className="text-xs text-muted-foreground">
+                                Everyone is on, so the individual communities make
+                                no difference and are disabled.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       <div className="flex justify-end border-t pt-4">
                         <ConfirmDelete
