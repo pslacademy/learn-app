@@ -8,6 +8,9 @@ import {
   FileText,
   Loader2,
   PlayCircle,
+  Lock,
+  GraduationCap,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -31,6 +34,18 @@ import {
   nextLesson,
 } from "@/lib/progress";
 import { useToast } from "@/hooks/use-toast";
+import { getProfile } from "@/lib/account";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  questionsOf,
+  isAssessment,
+  mySubmissions,
+  submitAssessment,
+  openModules,
+  type Question,
+  type Submission,
+} from "@/lib/assessments";
 
 /**
  * The course player.
@@ -43,6 +58,132 @@ import { useToast } from "@/hooks/use-toast";
  * because the database returned none. Handled as "not available" rather than
  * as an error.
  */
+/**
+ * An assessment, in the place the video would be.
+ *
+ * Answers are not marked and nothing is right or wrong, which the heading
+ * says out loud: somebody who thinks they are being tested writes what they
+ * think scores well rather than what is true.
+ *
+ * Resubmitting replaces the previous answer rather than adding a second one,
+ * so somebody who wants to think again can.
+ */
+const AssessmentForm = ({
+  lesson,
+  courseId,
+  existing,
+  answers,
+  setAnswers,
+  submitting,
+  onSubmit,
+}: {
+  lesson: Lesson;
+  courseId: string;
+  existing?: Submission;
+  answers: Record<string, string>;
+  setAnswers: (a: Record<string, string>) => void;
+  submitting: boolean;
+  onSubmit: () => void;
+}) => {
+  const questions = questionsOf(lesson);
+
+  /* Start from what they wrote last time, so revisiting shows their answers
+     rather than an empty form that looks like the submission was lost. */
+  useEffect(() => {
+    setAnswers(existing?.answers ?? {});
+  }, [lesson.id, existing, setAnswers]);
+
+  const answered = questions.filter((q) => (answers[q.id] ?? "").trim()).length;
+  const ready = answered === questions.length;
+
+  return (
+    <Card>
+      <CardContent className="space-y-6 p-6">
+        <div className="flex items-start gap-3">
+          <GraduationCap className="mt-1 h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
+          <div>
+            <h2 className="text-xl font-bold">{lesson.title}</h2>
+            <p className="text-sm text-muted-foreground">
+              Nothing here is marked and there are no wrong answers. Your
+              responses are read by the team, and submitting opens the next
+              module.
+            </p>
+          </div>
+        </div>
+
+        {existing && (
+          <p className="rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">
+            You submitted this on{" "}
+            {new Date(existing.submitted_at).toLocaleDateString("en-AU", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+            . You can change your answers and submit again.
+          </p>
+        )}
+
+        <div className="space-y-6">
+          {questions.map((q: Question, i: number) => (
+            <div key={q.id} className="space-y-2">
+              <p className="font-medium">
+                {i + 1}. {q.prompt}
+              </p>
+
+              {q.type === "choice" ? (
+                <div className="space-y-2">
+                  {(q.options ?? []).map((option) => (
+                    <label
+                      key={option}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition-colors hover:bg-muted",
+                        answers[q.id] === option && "border-primary bg-primary/5",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name={q.id}
+                        value={option}
+                        checked={answers[q.id] === option}
+                        onChange={() => setAnswers({ ...answers, [q.id]: option })}
+                        className="accent-current"
+                      />
+                      {option}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <Textarea
+                  rows={4}
+                  placeholder="Your answer"
+                  value={answers[q.id] ?? ""}
+                  onChange={(e) =>
+                    setAnswers({ ...answers, [q.id]: e.target.value })
+                  }
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <p className="text-sm text-muted-foreground">
+            {answered} of {questions.length} answered
+          </p>
+          <Button onClick={onSubmit} disabled={submitting || !ready}>
+            {submitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+            )}
+            {existing ? "Submit again" : "Submit"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const CoursePlayer = () => {
   const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
@@ -50,6 +191,10 @@ const CoursePlayer = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [current, setCurrent] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
+  const [submissions, setSubmissions] = useState<Map<string, Submission>>(new Map());
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [isTeam, setIsTeam] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [, tick] = useState(0);
   useEffect(() => onProgressChange(() => tick((n) => n + 1)), []);
@@ -57,9 +202,16 @@ const CoursePlayer = () => {
   useEffect(() => {
     let cancelled = false;
     if (!slug) return;
-    Promise.all([getCourse(slug), loadProgress()]).then(([c]) => {
+    Promise.all([
+      getCourse(slug),
+      loadProgress(),
+      mySubmissions(),
+      getProfile(),
+    ]).then(([c, , subs, profile]) => {
       if (cancelled) return;
       setCourse(c);
+      setSubmissions(subs);
+      setIsTeam(Boolean(profile?.is_admin || profile?.is_editor));
       if (c) setCurrent(nextLesson(c));
       setLoading(false);
     });
@@ -93,7 +245,15 @@ const CoursePlayer = () => {
     );
   }
 
-  const lessons = orderedLessons(course);
+  const open = openModules(course, submissions, isTeam);
+
+  /* A closed module's lessons are not offered. The rows are still there and
+     the database still returns them: this is pacing, not a gate, and saying
+     so in a comment is better than implying a security boundary that is not
+     there. */
+  const lessons = orderedLessons(course).filter((l) =>
+    l.module_id ? open.has(l.module_id) : true,
+  );
   const pct = courseProgress(course);
   const index = current ? lessons.findIndex((l) => l.id === current.id) : -1;
   const next = index >= 0 ? lessons[index + 1] : undefined;
@@ -135,6 +295,36 @@ const CoursePlayer = () => {
 
       <div className="grid gap-6 p-4 md:p-6 lg:grid-cols-[1fr,380px]">
         <div className="space-y-6">
+          {current && isAssessment(current) ? (
+            <AssessmentForm
+              lesson={current}
+              courseId={course.id}
+              existing={submissions.get(current.id)}
+              answers={answers}
+              setAnswers={setAnswers}
+              submitting={submitting}
+              onSubmit={async () => {
+                setSubmitting(true);
+                const { error } = await submitAssessment(course.id, current, answers);
+                setSubmitting(false);
+
+                if (error) {
+                  toast({
+                    variant: "destructive",
+                    title: "Not submitted",
+                    description: error,
+                  });
+                  return;
+                }
+
+                setSubmissions(await mySubmissions());
+                toast({
+                  title: "Submitted",
+                  description: "The next module is now open.",
+                });
+              }}
+            />
+          ) : (
           <div className="overflow-hidden rounded-xl bg-black">
             {current?.video_url ? (
               <video
@@ -151,6 +341,7 @@ const CoursePlayer = () => {
               </div>
             )}
           </div>
+          )}
 
           {current && (
             <>
@@ -240,16 +431,34 @@ const CoursePlayer = () => {
             defaultValue={course.modules.map((m) => m.id)}
             className="space-y-3"
           >
-            {course.modules.map((module) => (
+            {course.modules.map((module) => {
+              const locked = !open.has(module.id);
+              return (
               <AccordionItem
                 key={module.id}
                 value={module.id}
-                className="rounded-xl border bg-card px-4"
+                className={cn(
+                  "rounded-xl border bg-card px-4",
+                  locked && "opacity-70",
+                )}
               >
                 <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  {module.title}
+                  <span className="flex items-center gap-2">
+                    {locked && (
+                      <Lock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    )}
+                    {module.title}
+                  </span>
                 </AccordionTrigger>
                 <AccordionContent className="pb-2">
+                  {/* Why it is closed, rather than a lock with no explanation.
+                      Somebody who cannot see the reason assumes it is broken. */}
+                  {locked ? (
+                    <p className="px-2 py-3 text-sm text-muted-foreground">
+                      Finish the assessment in the previous module to open this
+                      one.
+                    </p>
+                  ) : (
                   <ul className="-mx-2">
                     {module.lessons.map((lesson) => {
                       const done = isLessonComplete(lesson.id);
@@ -279,6 +488,11 @@ const CoursePlayer = () => {
                                 )}
                               >
                                 {lesson.title}
+                                {isAssessment(lesson) && (
+                                  <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                                    Assessment
+                                  </span>
+                                )}
                               </span>
                               {lesson.duration && (
                                 <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
@@ -292,9 +506,11 @@ const CoursePlayer = () => {
                       );
                     })}
                   </ul>
+                  )}
                 </AccordionContent>
               </AccordionItem>
-            ))}
+              );
+            })}
           </Accordion>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">

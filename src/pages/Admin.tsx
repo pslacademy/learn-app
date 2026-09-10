@@ -17,6 +17,7 @@ import {
   Video,
   Image as ImageIcon,
   ShieldAlert,
+  GraduationCap as GraduationCapIcon,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,11 @@ import { supabase } from "@/lib/supabase";
 import { getProfile, type Profile } from "@/lib/account";
 import { listCourses, type Course, type Lesson, type Resource } from "@/lib/courses";
 import { allCommunities, type Community } from "@/lib/communities";
+import {
+  questionsOf,
+  newQuestionId,
+  type Question,
+} from "@/lib/assessments";
 import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { UnsavedBar } from "@/components/UnsavedBar";
@@ -45,6 +51,7 @@ import { EventsAdmin } from "@/components/admin/EventsAdmin";
 import { MembersAdmin } from "@/components/admin/MembersAdmin";
 import { ResourcesAdmin } from "@/components/admin/ResourcesAdmin";
 import { CommunityAdmin } from "@/components/admin/CommunityAdmin";
+import { AssessmentsAdmin } from "@/components/admin/AssessmentsAdmin";
 
 /**
  * Academy administration.
@@ -299,6 +306,17 @@ const Admin = () => {
 
   const resources: Resource[] = (lessonValue("resources") as Resource[]) ?? [];
 
+  /* Questions held in the same draft as everything else, so Save all changes
+     writes them with the rest of the lesson. */
+  const questions: Question[] = lesson
+    ? ((lessonValue("questions") as Question[]) ?? [])
+    : [];
+
+  const setQuestion = (index: number, patch: Partial<Question>) =>
+    editLesson({
+      questions: questions.map((q, i) => (i === index ? { ...q, ...patch } : q)),
+    } as Partial<Lesson>);
+
   const setResource = (index: number, patch: Partial<Resource>) => {
     const next = resources.map((r, i) => (i === index ? { ...r, ...patch } : r));
     editLesson({ resources: next });
@@ -363,7 +381,7 @@ const Admin = () => {
               <MessageSquare className="mr-2 h-4 w-4" aria-hidden="true" />
               Community
             </TabsTrigger>
-            <TabsTrigger value="assessments" disabled>
+            <TabsTrigger value="assessments">
               <GraduationCap className="mr-2 h-4 w-4" aria-hidden="true" />
               Assessments
             </TabsTrigger>
@@ -374,6 +392,10 @@ const Admin = () => {
               <MembersAdmin communities={communities} />
             </TabsContent>
           )}
+
+          <TabsContent value="assessments" className="mt-6">
+            <AssessmentsAdmin />
+          </TabsContent>
 
           <TabsContent value="community" className="mt-6">
             <CommunityAdmin communities={communities} />
@@ -886,6 +908,141 @@ const Admin = () => {
                               checked={Boolean(lessonValue("is_published"))}
                               onCheckedChange={(v) => editLesson({ is_published: v })}
                             />
+                          </div>
+
+                          {/* Assessment */}
+                          <div className="space-y-3 rounded-lg border p-4">
+                            <div>
+                              <p className="flex items-center gap-2 font-medium">
+                                <GraduationCapIcon className="h-4 w-4" aria-hidden="true" />
+                                Assessment
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Add questions to turn this lesson into the
+                                module's assessment. Submitting it opens the
+                                next module. Nothing is marked: you read the
+                                answers.
+                              </p>
+                            </div>
+
+                            {questions.length === 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                No questions, so this is an ordinary lesson.
+                              </p>
+                            )}
+
+                            {questions.map((q, i) => (
+                              <div
+                                key={q.id}
+                                className="space-y-3 rounded-md bg-muted/40 p-3"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {q.type === "choice"
+                                      ? "Multiple choice"
+                                      : "Written answer"}
+                                  </p>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={saving}
+                                    onClick={() =>
+                                      editLesson({
+                                        questions: questions.filter(
+                                          (_, j) => j !== i,
+                                        ),
+                                      } as Partial<Lesson>)
+                                    }
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                    Remove
+                                  </Button>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Label className="text-xs uppercase tracking-wide">
+                                    Question
+                                  </Label>
+                                  <Textarea
+                                    rows={2}
+                                    value={q.prompt}
+                                    onChange={(e) =>
+                                      setQuestion(i, { prompt: e.target.value })
+                                    }
+                                  />
+                                </div>
+
+                                {q.type === "choice" && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs uppercase tracking-wide">
+                                      Options, one per line
+                                    </Label>
+                                    <Textarea
+                                      rows={3}
+                                      value={(q.options ?? []).join("\n")}
+                                      onChange={(e) =>
+                                        setQuestion(i, {
+                                          options: e.target.value
+                                            .split("\n")
+                                            .map((o) => o.trim())
+                                            .filter(Boolean),
+                                        })
+                                      }
+                                    />
+                                    {(q.options ?? []).length < 2 && (
+                                      <p className="text-xs text-amber-700">
+                                        A multiple choice question needs at
+                                        least two options.
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={saving}
+                                onClick={() =>
+                                  editLesson({
+                                    questions: [
+                                      ...questions,
+                                      {
+                                        id: newQuestionId(),
+                                        type: "choice",
+                                        prompt: "",
+                                        options: [],
+                                      },
+                                    ],
+                                  } as Partial<Lesson>)
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                                Multiple choice question
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={saving}
+                                onClick={() =>
+                                  editLesson({
+                                    questions: [
+                                      ...questions,
+                                      {
+                                        id: newQuestionId(),
+                                        type: "written",
+                                        prompt: "",
+                                      },
+                                    ],
+                                  } as Partial<Lesson>)
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                                Written answer question
+                              </Button>
+                            </div>
                           </div>
 
                           {/* Resources */}

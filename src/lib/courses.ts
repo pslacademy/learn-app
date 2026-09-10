@@ -32,6 +32,8 @@ export interface Lesson {
   video_url: string | null;
   thumbnail_url: string | null;
   resources: Resource[];
+  /** A lesson with questions is its module's assessment. */
+  questions: unknown[];
   sort_order: number;
   is_published: boolean;
 }
@@ -89,7 +91,7 @@ export const listCourses = async (): Promise<Course[]> => {
       supabase
         .from("course_lessons")
         .select(
-          "id, course_id, module_id, title, description, duration, video_url, thumbnail_url, resources, sort_order, is_published",
+          "id, course_id, module_id, title, description, duration, video_url, thumbnail_url, resources, questions, sort_order, is_published",
         )
         .order("sort_order"),
     ]);
@@ -111,6 +113,7 @@ export const listCourses = async (): Promise<Course[]> => {
     const lesson: Lesson = {
       ...(raw as Lesson),
       resources: Array.isArray(raw.resources) ? (raw.resources as Resource[]) : [],
+      questions: Array.isArray(raw.questions) ? (raw.questions as unknown[]) : [],
     };
     const list = lessonsByCourse.get(lesson.course_id) ?? [];
     list.push(lesson);
