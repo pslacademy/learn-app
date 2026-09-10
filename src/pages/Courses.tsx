@@ -87,6 +87,15 @@ const Courses = () => {
           </div>
 
           <div className="mt-auto space-y-3">
+            {/* A course you own that has nothing in it yet says so. Showing
+                0 of 0 lessons and an empty bar reads as broken. */}
+            {total === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No lessons published yet. This course will open when the first
+                one is added.
+              </p>
+            ) : (
+              <>
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">{pct}% complete</span>
               <span className="text-muted-foreground">
@@ -94,17 +103,25 @@ const Courses = () => {
               </span>
             </div>
             <Progress value={pct} className="h-2" />
+              </>
+            )}
 
             <div className="flex items-center justify-between pt-1">
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" aria-hidden="true" />
                 {course.total_duration ?? `${course.modules.length} modules`}
               </span>
-              <Button asChild>
-                <Link to={`/courses/${course.slug}`}>
-                  {pct === 100 ? "Start over" : pct === 0 ? "Start" : "Continue"}
-                </Link>
-              </Button>
+              {total === 0 ? (
+                <Button disabled variant="outline">
+                  Coming soon
+                </Button>
+              ) : (
+                <Button asChild>
+                  <Link to={`/courses/${course.slug}`}>
+                    {pct === 100 ? "Start over" : pct === 0 ? "Start" : "Continue"}
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>

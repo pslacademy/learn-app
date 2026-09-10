@@ -79,8 +79,13 @@ export interface Course {
  * would show as a course that looks open and then plays nothing.
  */
 export const listCourses = async (): Promise<Course[]> => {
-  const [{ data: courses, error }, { data: links }, { data: modules }, { data: lessons }] =
-    await Promise.all([
+  const [
+    { data: courses, error },
+    { data: links },
+    { data: modules },
+    { data: lessons },
+    { data: entitled },
+  ] = await Promise.all([
       supabase
         .from("courses")
         .select("id, slug, title, description, code, image_url, instructor, badge, total_duration, lesson_count, sort_order, is_active, visible_to_all")
@@ -94,6 +99,16 @@ export const listCourses = async (): Promise<Course[]> => {
           "id, course_id, module_id, title, description, duration, video_url, thumbnail_url, resources, questions, sort_order, is_published",
         )
         .order("sort_order"),
+
+      /*
+        Which courses this member may take, asked of the database.
+
+        This used to be inferred from whether any lesson rows came back, which
+        is right for a course they have not bought and wrong for one they own
+        that is still empty: both return nothing, so a new course appeared to
+        its owner as something they had to buy.
+      */
+      supabase.from("course_entitlements").select("course_id"),
     ]);
 
   if (error) {
@@ -127,6 +142,10 @@ export const listCourses = async (): Promise<Course[]> => {
     communitiesByCourse.set(l.course_id, list);
   }
 
+  const mayTake = new Set(
+    (entitled ?? []).map((row) => row.course_id as string),
+  );
+
   return (courses ?? []).map((c) => {
     const courseModules = modulesByCourse.get(c.id) ?? [];
     const courseLessons = lessonsByCourse.get(c.id) ?? [];
@@ -136,15 +155,10 @@ export const listCourses = async (): Promise<Course[]> => {
       if (parent) parent.lessons.push(lesson);
     }
 
-    /*
-      Unlocked means the database gave us the inside of the course. It did
-      not for a course the member has not bought, so there is nothing to
-      infer and nothing to re-check.
-    */
     return {
       ...(c as Course),
       community_ids: communitiesByCourse.get(c.id) ?? [],
-      unlocked: courseLessons.length > 0,
+      unlocked: mayTake.has(c.id),
       modules: courseModules,
     };
   });
