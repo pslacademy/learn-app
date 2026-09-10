@@ -364,7 +364,10 @@ const CommunityPage = () => {
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="space-y-4 p-6">
               <h2 className="text-2xl font-bold text-primary">
-                Welcome to your {community.name} community
+                {/* The name stands on its own. Appending "community" read as
+                    "PSLA Community community" and will read badly again the
+                    next time a community is named after itself. */}
+                Welcome to {community.name}
               </h2>
               <p className="text-muted-foreground">
                 A space to connect with the people on the same road as you.

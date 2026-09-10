@@ -112,7 +112,7 @@ export const BRAND = {
      * The template. A4 landscape, PNG or JPEG, ideally 3508 x 2480 pixels.
      * Empty means draw it instead.
      */
-    templateUrl: "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa22d551628941963a9a170.jpg",
+    templateUrl: "",
 
     /**
      * Where the four variable fields print, as percentages of the page.
