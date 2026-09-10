@@ -110,14 +110,15 @@ export function Header() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        <a
-          href={BRAND.links.contact}
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* The support page, not the marketing site. Sending a signed-in
+            member out to a public contact form to ask about a lesson was
+            always a placeholder. */}
+        <Link
+          to="/support"
           className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:block"
         >
           Contact support
-        </a>
+        </Link>
 
         <DropdownMenu
           onOpenChange={(open) => {

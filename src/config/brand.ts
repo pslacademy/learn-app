@@ -159,7 +159,28 @@ export const BRAND = {
   },
 
   support: {
-    email: "info@professionalservicesleadership.com",
+    /**
+     * General questions. The support form is the main route; this is for
+     * somebody who would rather write an email.
+     */
+    email: "support@professionalservicesleadership.com",
+
+    /**
+     * Billing.
+     *
+     * The People Builders address, deliberately, not a PSLA alias.
+     *
+     * PSLA trades under People Builders and invoices are issued from
+     * accounts@peoplebuilders.com.au. An alias would forward correctly and
+     * then reply from the wrong name, and somebody querying an invoice would
+     * be writing to an address that does not appear on it. The page says why
+     * the name differs, which is a sentence of explanation against a
+     * recurring confusion.
+     */
+    accountsEmail: "accounts@peoplebuilders.com.au",
+    accountsHours: "Monday to Friday, 9am to 5pm AEST",
+    accountsNote:
+      "Invoices are issued by People Builders, which Professional Services Leadership Academy trades under.",
   },
 } as const;
 

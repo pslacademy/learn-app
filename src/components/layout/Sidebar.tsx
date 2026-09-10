@@ -60,6 +60,7 @@ const communitySpaces = [
 const secondaryItems = [
   { icon: MessageSquare, label: "Messages", href: "/messages" },
   { icon: Award, label: "Achievements", href: "/achievements" },
+  { icon: HelpCircle, label: "Support", href: "/support" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
