@@ -137,71 +137,87 @@ const spacedCaps = (
 };
 
 /**
- * Draw the certificate.
+ * Print the four variable fields onto a template.
  *
- * Laid out like EI Academy's: an accent bar down the left edge, the logo top
- * left, the credential id top right, then the citation ranged left. Ranged
- * left rather than centred because a centred certificate reads as a template
- * and this one has to stand up in front of a firm.
- *
- * A4 landscape in millimetres. Helvetica, one of the fonts jsPDF has built
- * in: anything else means shipping a font file to render a page most members
- * print once.
+ * Positions come from brand.ts as percentages of the page, so they can be
+ * judged against the design and moved without touching this code.
  */
-export const downloadCertificate = async (cert: Certificate) => {
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const W = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
+const printFields = (
+  doc: jsPDF,
+  cert: Certificate,
+  W: number,
+  H: number,
+) => {
+  const { fields, textColour, accentColour } = BRAND.certificate;
 
+  const put = (
+    text: string,
+    f: {
+      x: number;
+      y: number;
+      size: number;
+      align: "left" | "center" | "right";
+      bold: boolean;
+      maxWidth: number;
+    },
+    colour: [number, number, number],
+  ) => {
+    doc.setFont("helvetica", f.bold ? "bold" : "normal");
+    doc.setFontSize(f.size);
+    doc.setTextColor(...colour);
+
+    // Wrapped, so a long name or course title stays on the page rather than
+    // running off the edge of somebody's certificate.
+    const lines = doc.splitTextToSize(text, (W * f.maxWidth) / 100) as string[];
+    doc.text(lines, (W * f.x) / 100, (H * f.y) / 100, { align: f.align });
+  };
+
+  const issued = new Date(cert.issued_at).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  put(cert.member_name, fields.memberName, textColour);
+  put(cert.course_title, fields.courseTitle, accentColour);
+  put(issued, fields.issuedDate, textColour);
+  put(cert.code, fields.credentialId, textColour);
+};
+
+/**
+ * Draw the certificate from its parts.
+ *
+ * The fallback, used when there is no template or it cannot be reached. It is
+ * deliberately plain: its job is to be a usable document, not to compete with
+ * a design.
+ */
+const drawFallback = async (doc: jsPDF, cert: Certificate, W: number, H: number) => {
   const ORANGE: [number, number, number] = [245, 130, 32];
   const NAVY: [number, number, number] = [44, 62, 80];
   const GREY: [number, number, number] = [110, 120, 130];
-
   const left = 34;
 
-  // The accent bar down the left edge.
   doc.setFillColor(...ORANGE);
   doc.rect(0, 0, 6, H, "F");
   doc.setFillColor(...NAVY);
   doc.rect(6, 0, 1.6, H, "F");
 
-  /*
-    The logo.
-
-    A PNG of the full logo if there is one, and the name typeset if not. The
-    SVG logo cannot be used: jsPDF places PNG and JPEG only.
-  */
   const logo = await asDataUrl(BRAND.certificate.logoUrl);
   if (logo) {
     try {
-      /* Placed to a fixed height with the width left to the natural ratio, so
-         a logo of any proportion sits correctly rather than being squashed
-         into a box that was guessed at. */
       const props = doc.getImageProperties(logo);
-      /* Constrained on both axes: a wide logo would otherwise run under the
-         credential id, and a tall one would push into the heading. */
-      const maxH = 20;
-      const maxW = 90;
       const ratio = props.width / props.height;
-      const h = Math.min(maxH, maxW / ratio);
+      const h = Math.min(20, 90 / ratio);
       doc.addImage(logo, "PNG", left, 22, h * ratio, h);
     } catch (_) {
-      /* an unusable image is not worth failing the page for */
+      /* the name below still identifies it */
     }
-  } else {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...NAVY);
-    doc.text("PROFESSIONAL SERVICES", left, 28);
-    doc.setTextColor(...ORANGE);
-    doc.text("LEADERSHIP ACADEMY", left, 34);
   }
 
-  // Credential id, top right.
   doc.setFont("helvetica", "bold");
   doc.setFontSize(6.5);
   doc.setTextColor(...GREY);
-  spacedCaps(doc, "CREDENTIAL ID", W - 34 - doc.getTextWidth("CREDENTIAL ID") - 18, 27, 1.2);
+  spacedCaps(doc, "CREDENTIAL ID", W - 34 - 42, 27, 1.2);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...NAVY);
@@ -234,17 +250,9 @@ export const downloadCertificate = async (cert: Certificate) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.setTextColor(...ORANGE);
-  const title = doc.splitTextToSize(cert.course_title, W - left - 90) as string[];
+  const title = doc.splitTextToSize(cert.course_title, W - left - 100) as string[];
   doc.text(title, left, 128);
 
-  /*
-    The signature block.
-
-    The rule is the fixed point and everything is measured from it, so the
-    signature rests on the line rather than floating above it. Sized by its
-    own ratio for the same reason as the logo: a signature squashed into a
-    guessed box looks forged.
-  */
   const RULE_Y = H - 48;
 
   const sig = await asDataUrl(BRAND.certificate.signatureUrl);
@@ -253,10 +261,9 @@ export const downloadCertificate = async (cert: Certificate) => {
       const props = doc.getImageProperties(sig);
       const h = 18;
       const w = (props.width / props.height) * h;
-      // Sat on the line, with a hair of overlap so the pen appears to touch it.
       doc.addImage(sig, "PNG", left, RULE_Y - h + 1.5, Math.min(w, 80), h);
     } catch (_) {
-      /* the rule and the name below still make sense on their own */
+      /* the rule and name still read correctly */
     }
   }
 
@@ -273,7 +280,6 @@ export const downloadCertificate = async (cert: Certificate) => {
   doc.setFontSize(9);
   doc.setTextColor(...GREY);
   doc.text(BRAND.certificate.signatoryTitle, left, RULE_Y + 13);
-
   doc.text(
     new Date(cert.issued_at).toLocaleDateString("en-AU", {
       day: "numeric",
@@ -284,8 +290,6 @@ export const downloadCertificate = async (cert: Certificate) => {
     RULE_Y + 22,
   );
 
-  /* The seal, level with the signature block rather than floating on its own,
-     which is where a seal is pressed on a real document. */
   const seal = await asDataUrl(BRAND.certificate.sealUrl);
   if (seal) {
     try {
@@ -294,8 +298,40 @@ export const downloadCertificate = async (cert: Certificate) => {
       const w = (props.width / props.height) * h;
       doc.addImage(seal, "PNG", W - 52 - w / 2, RULE_Y - h + 12, w, h);
     } catch (_) {
-      /* a certificate without a seal still reads correctly */
+      /* it reads correctly without one */
     }
+  }
+};
+
+/**
+ * The certificate.
+ *
+ * A4 landscape in millimetres. With a template, this places the image and
+ * prints four fields on it; without one, it draws the fallback.
+ */
+export const downloadCertificate = async (cert: Certificate) => {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+
+  const template = await asDataUrl(BRAND.certificate.templateUrl);
+
+  if (template) {
+    try {
+      /*
+        Placed to fill the page exactly. A template made at the stated size is
+        already A4 landscape, so nothing is stretched; one made at another
+        ratio is fitted to the page rather than cropped, because a cropped
+        certificate loses its border.
+      */
+      const kind = template.includes("image/png") ? "PNG" : "JPEG";
+      doc.addImage(template, kind, 0, 0, W, H);
+      printFields(doc, cert, W, H);
+    } catch (_) {
+      await drawFallback(doc, cert, W, H);
+    }
+  } else {
+    await drawFallback(doc, cert, W, H);
   }
 
   const safe = cert.course_title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();

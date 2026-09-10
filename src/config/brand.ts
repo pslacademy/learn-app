@@ -93,32 +93,69 @@ export const BRAND = {
    * and the name without it, which is a certificate missing a signature
    * rather than a broken page.
    */
+  /**
+   * The certificate.
+   *
+   * Two ways to produce one.
+   *
+   * With a template: an A4 landscape image designed elsewhere, on which this
+   * prints only the four things that change. That is the intended route. The
+   * design is then a design job done in a design tool, rather than a
+   * conversation about millimetres with somebody who cannot see the page.
+   *
+   * Without one: the certificate is drawn here from the parts below. Kept as
+   * a fallback so a missing or unreachable template still produces something
+   * a member can hold.
+   */
   certificate: {
+    /**
+     * The template. A4 landscape, PNG or JPEG, ideally 3508 x 2480 pixels.
+     * Empty means draw it instead.
+     */
+    templateUrl: "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa22d551628941963a9a170.jpg",
+
+    /**
+     * Where the four variable fields print, as percentages of the page.
+     *
+     * Percentages rather than millimetres so they can be judged by eye
+     * against the design: x 50 is the middle of the page, y 50 halfway down.
+     * These are meant to be edited directly when a field sits wrong; nothing
+     * else needs changing with them.
+     *
+     * align is where the text sits relative to x: "left", "center" or
+     * "right". size is in points.
+     */
+    fields: {
+      /*
+        Measured from the template rather than guessed.
+
+        The name rule sits at 50.4% down and runs from 10.3% to 49.2% across,
+        so the name is ranged left on that margin and rests just above it.
+        "has successfuly completed" ends at 56%, and the seal block begins at
+        71%, which is the clear band the remaining three fields sit in.
+
+        maxWidth keeps a long name or course title inside the white column,
+        away from the artwork down the right.
+      */
+      memberName: { x: 10.5, y: 49, size: 30, align: "left" as const, bold: true, maxWidth: 45 },
+      courseTitle: { x: 10.5, y: 61, size: 21, align: "left" as const, bold: true, maxWidth: 45 },
+      issuedDate: { x: 10.5, y: 66.5, size: 11, align: "left" as const, bold: false, maxWidth: 45 },
+      credentialId: { x: 10.5, y: 70, size: 9, align: "left" as const, bold: false, maxWidth: 45 },
+    },
+
+    /** Ink for the printed fields. The template supplies everything else. */
+    textColour: [44, 62, 80] as [number, number, number],
+    accentColour: [245, 130, 32] as [number, number, number],
+
+    /* ---- Used only when there is no template ---- */
+    logoUrl:
+      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/69f44fd8e9694b9664d25c6c.png",
+    sealUrl:
+      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa0e25dd63e08439cd82b65.png",
     signatureUrl:
       "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa0dc0edd867dc12de8a2e8.png",
     signatoryName: "Grant Herbert",
     signatoryTitle: "Professional Services Leadership Mentor",
-    /**
-     * The seal, as an image.
-     *
-     * A drawn one was tried first and looked drawn. This is a real seal.
-     *
-     * PNG with a transparent background: jsPDF places PNG and JPEG only, so
-     * the SVG logo cannot be used here and a PNG version is needed alongside
-     * it.
-     */
-    sealUrl:
-      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/6aa0e25dd63e08439cd82b65.png",
-
-    /**
-     * The full logo, as a PNG for the same reason.
-     *
-     * Empty until one exists, in which case the certificate sets the academy
-     * name in type instead. A certificate with the name typeset is fine; one
-     * that fails to generate is not.
-     */
-    logoUrl:
-      "https://assets.cdn.filesafe.space/JPAvk9j6fev90MrYL2Nb/media/69f44fd8e9694b9664d25c6c.png",
   },
 
   support: {
