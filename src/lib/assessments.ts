@@ -33,6 +33,8 @@ export interface Submission {
       questions have been rewritten. */
   questions: Question[];
   submitted_at: string;
+  /** Saved as they type. Does not open the next module. */
+  is_draft: boolean;
 }
 
 export const questionsOf = (lesson: Lesson): Question[] =>
@@ -62,6 +64,42 @@ export const mySubmissions = async (): Promise<Map<string, Submission>> => {
   );
 };
 
+/**
+ * Save what they have written so far.
+ *
+ * The same row as the eventual submission, marked unfinished, so a draft
+ * becomes the submission rather than sitting beside it. Saved to the database
+ * rather than the browser: somebody who writes half an answer on a laptop
+ * should find it on their phone.
+ *
+ * Failure is logged and not shown. An autosave that interrupts with an error
+ * toast while somebody is mid-sentence is worse than one that quietly retries
+ * on the next keystroke.
+ */
+export const saveDraft = async (
+  courseId: string,
+  lesson: Lesson,
+  answers: Record<string, string>,
+): Promise<void> => {
+  const { data: session } = await supabase.auth.getSession();
+  const me = session?.session?.user?.id;
+  if (!me) return;
+
+  const { error } = await supabase.from("assessment_submissions").upsert(
+    {
+      member_id: me,
+      course_id: courseId,
+      lesson_id: lesson.id,
+      answers,
+      questions: questionsOf(lesson),
+      is_draft: true,
+    },
+    { onConflict: "member_id,lesson_id" },
+  );
+
+  if (error) console.warn("Draft not saved:", error.message);
+};
+
 export const submitAssessment = async (
   courseId: string,
   lesson: Lesson,
@@ -80,6 +118,7 @@ export const submitAssessment = async (
       /* The questions as they stood. Without this, rewriting a question
          later turns every past answer into a paragraph with no context. */
       questions: questionsOf(lesson),
+      is_draft: false,
     },
     { onConflict: "member_id,lesson_id" },
   );
@@ -116,7 +155,10 @@ export const openModules = (
 
     /* Once one module blocks, everything after it is closed too: opening
        module four while three is shut would make the sequence meaningless. */
-    if (assessment && !submissions.has(assessment.id)) previousBlocked = true;
+    /* A draft is not a submission: typing one character must not open the
+       next module. */
+    const done = assessment ? submissions.get(assessment.id) : undefined;
+    if (assessment && (!done || done.is_draft)) previousBlocked = true;
   }
 
   return open;
@@ -124,9 +166,12 @@ export const openModules = (
 
 /** Every submission, for the team. Most recent first. */
 export const allSubmissions = async (): Promise<Submission[]> => {
+  /* Drafts are excluded by policy as well, so this filter is belt and
+     braces rather than the thing keeping them out. */
   const { data, error } = await supabase
     .from("assessment_submissions")
     .select("*")
+    .eq("is_draft", false)
     .order("submitted_at", { ascending: false });
 
   if (error) {
@@ -139,3 +184,99 @@ export const allSubmissions = async (): Promise<Submission[]> => {
 /** A short id for a new question. Unique enough within one lesson. */
 export const newQuestionId = () =>
   `q${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+
+/**
+ * Download a submission as a PDF.
+ *
+ * A record of what somebody wrote about their own practice, which is worth
+ * keeping outside a login. Portrait, because these are paragraphs rather than
+ * a certificate.
+ */
+export const downloadSubmission = async (
+  submission: Submission,
+  courseTitle: string,
+  lessonTitle: string,
+  memberName: string,
+) => {
+  const { default: jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+
+  const NAVY: [number, number, number] = [44, 62, 80];
+  const ORANGE: [number, number, number] = [245, 130, 32];
+  const GREY: [number, number, number] = [110, 120, 130];
+
+  const left = 20;
+  const width = W - left * 2;
+  let y = 24;
+
+  /* Starts a new page when the next block would run off this one. Checked
+     before each block rather than after, so a heading never sits alone at the
+     foot of a page with its answer overleaf. */
+  const room = (needed: number) => {
+    if (y + needed < H - 20) return;
+    doc.addPage();
+    y = 24;
+  };
+
+  doc.setFillColor(...ORANGE);
+  doc.rect(0, 0, W, 3, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...NAVY);
+  doc.text(lessonTitle, left, y);
+  y += 7;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...GREY);
+  doc.text(courseTitle, left, y);
+  y += 5;
+  doc.text(
+    `${memberName} • submitted ${new Date(submission.submitted_at).toLocaleDateString("en-AU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })}`,
+    left,
+    y,
+  );
+  y += 8;
+
+  doc.setDrawColor(220, 224, 228);
+  doc.setLineWidth(0.3);
+  doc.line(left, y, W - left, y);
+  y += 10;
+
+  (submission.questions ?? []).forEach((q, i) => {
+    const prompt = doc.splitTextToSize(`${i + 1}. ${q.prompt}`, width) as string[];
+    const answer = doc.splitTextToSize(
+      submission.answers?.[q.id] || "No answer given.",
+      width - 4,
+    ) as string[];
+
+    room(prompt.length * 5 + answer.length * 5 + 14);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...NAVY);
+    doc.text(prompt, left, y);
+    y += prompt.length * 5 + 3;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(60, 70, 80);
+    doc.text(answer, left + 4, y);
+    y += answer.length * 5 + 9;
+  });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...GREY);
+  doc.text("Professional Services Leadership Academy", left, H - 12);
+
+  const safe = lessonTitle.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  doc.save(`psla-assessment-${safe}.pdf`);
+};

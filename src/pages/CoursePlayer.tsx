@@ -42,6 +42,8 @@ import {
   isAssessment,
   mySubmissions,
   submitAssessment,
+  saveDraft,
+  downloadSubmission,
   openModules,
   type Question,
   type Submission,
@@ -71,6 +73,8 @@ import {
 const AssessmentForm = ({
   lesson,
   courseId,
+  courseTitle,
+  memberName,
   existing,
   answers,
   setAnswers,
@@ -79,6 +83,8 @@ const AssessmentForm = ({
 }: {
   lesson: Lesson;
   courseId: string;
+  courseTitle: string;
+  memberName: string;
   existing?: Submission;
   answers: Record<string, string>;
   setAnswers: (a: Record<string, string>) => void;
@@ -95,6 +101,27 @@ const AssessmentForm = ({
 
   const answered = questions.filter((q) => (answers[q.id] ?? "").trim()).length;
   const ready = answered === questions.length;
+
+  /*
+    Saved a second after they stop typing, not on every keystroke: one is a
+    request a minute, the other is a request per character.
+
+    Skipped once it has been submitted, so revisiting a finished assessment
+    and reading it back does not quietly turn it into a draft again and close
+    the next module.
+  */
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  useEffect(() => {
+    if (existing && !existing.is_draft) return;
+    if (Object.keys(answers).length === 0) return;
+
+    const timer = window.setTimeout(async () => {
+      await saveDraft(courseId, lesson, answers);
+      setSavedAt(new Date());
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [answers, courseId, lesson, existing]);
 
   return (
     <Card>
@@ -169,7 +196,33 @@ const AssessmentForm = ({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className="text-sm text-muted-foreground">
             {answered} of {questions.length} answered
+            {savedAt && !(existing && !existing.is_draft) && (
+              <span className="ml-2">
+                • saved{" "}
+                {savedAt.toLocaleTimeString("en-AU", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
           </p>
+          <div className="flex flex-wrap gap-2">
+          {existing && !existing.is_draft && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                void downloadSubmission(
+                  existing,
+                  courseTitle,
+                  lesson.title,
+                  memberName,
+                );
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+              Download
+            </Button>
+          )}
           <Button onClick={onSubmit} disabled={submitting || !ready}>
             {submitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -178,6 +231,7 @@ const AssessmentForm = ({
             )}
             {existing ? "Submit again" : "Submit"}
           </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -194,6 +248,7 @@ const CoursePlayer = () => {
   const [submissions, setSubmissions] = useState<Map<string, Submission>>(new Map());
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isTeam, setIsTeam] = useState(false);
+  const [memberName, setMemberName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const [, tick] = useState(0);
@@ -212,6 +267,10 @@ const CoursePlayer = () => {
       setCourse(c);
       setSubmissions(subs);
       setIsTeam(Boolean(profile?.is_admin || profile?.is_editor));
+      setMemberName(
+        [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+          (profile?.email ?? ""),
+      );
       if (c) setCurrent(nextLesson(c));
       setLoading(false);
     });
@@ -299,6 +358,8 @@ const CoursePlayer = () => {
             <AssessmentForm
               lesson={current}
               courseId={course.id}
+              courseTitle={course.title}
+              memberName={memberName}
               existing={submissions.get(current.id)}
               answers={answers}
               setAnswers={setAnswers}

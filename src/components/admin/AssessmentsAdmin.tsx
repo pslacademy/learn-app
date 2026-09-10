@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { GraduationCap, Loader2, RefreshCw, Search } from "lucide-react";
+import { Download, GraduationCap, Loader2, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/lib/supabase";
-import { allSubmissions, type Submission, type Question } from "@/lib/assessments";
+import {
+  allSubmissions,
+  downloadSubmission,
+  type Submission,
+  type Question,
+} from "@/lib/assessments";
 import { listCourses, type Course } from "@/lib/courses";
 import { authorName, authorInitials, type Author } from "@/lib/community";
 
@@ -151,13 +156,30 @@ export const AssessmentsAdmin = () => {
                         </p>
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {new Date(s.submitted_at).toLocaleDateString("en-AU", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {new Date(s.submitted_at).toLocaleDateString("en-AU", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Download this submission"
+                        onClick={() => {
+                          void downloadSubmission(
+                            s,
+                            place.course,
+                            place.lesson,
+                            authorName(who),
+                          );
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-3 border-t pt-4">
